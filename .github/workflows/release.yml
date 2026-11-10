@@ -1,0 +1,66 @@
+name: release
+# Se déclenche seulement sur un tag vX.Y.Z. Rien n'est publié tant qu'aucun tag n'est poussé.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, name: windows, cmd: "npm run tauri build -- --bundles nsis", glob: "src-tauri/target/release/bundle/nsis/*-setup.exe" }
+          - { os: ubuntu-22.04, name: linux, cmd: "npm run tauri build -- --bundles deb,rpm,appimage", glob: "src-tauri/target/release/bundle/*/*.{deb,rpm,AppImage}" }
+          - { os: ubuntu-22.04, name: android, cmd: "npm run tauri android build -- --apk --debug --target aarch64 armv7", glob: "src-tauri/gen/android/app/build/outputs/apk/**/*.apk" }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with: { node-version: 22 }
+      - name: Dépendances Linux
+        if: matrix.name != 'windows'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf rpm
+      - name: Cibles Rust Android
+        if: matrix.name == 'android'
+        run: rustup target add aarch64-linux-android armv7-linux-androideabi
+      - run: npm ci
+      - name: Tests Rust et IR
+        if: matrix.name == 'linux'
+        run: |
+          (cd src-tauri && cargo test)
+          node src/ir.test.mjs
+      - run: ${{ matrix.cmd }}
+        env:
+          NDK_HOME: ${{ env.ANDROID_NDK_LATEST_HOME }}
+      - name: Rassembler
+        shell: bash
+        run: |
+          shopt -s globstar extglob nullglob
+          mkdir out
+          for f in ${{ matrix.glob }}; do cp "$f" out/; done
+          ls out
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with: { name: "${{ matrix.name }}", path: out/*, if-no-files-found: error }
+
+  release:
+    needs: build
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with: { path: dist, merge-multiple: true }
+      - name: SHA256SUMS + release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS
+          gh release create "$GITHUB_REF_NAME" * --repo "$GITHUB_REPOSITORY" --title "ForgeRemote $GITHUB_REF_NAME" --generate-notes

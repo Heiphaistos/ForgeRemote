@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>ForgeRemote</title>
   <link rel="stylesheet" href="styles.css" />
-  <script defer src="main.js"></script>
+  <script type="module" src="main.js"></script>
 </head>
 <body>
   <main class="remote">
@@ -71,21 +71,40 @@
     </div>
 
     <p id="msg" role="status"></p>
+    <footer class="foot">
+      <button id="upd" class="link">Rechercher une mise à jour</button>
+      <label><input type="checkbox" id="autoupd" /> Mises à jour auto</label>
+      <span id="ver">v0.2.0</span>
+    </footer>
   </main>
 
   <dialog id="dlg">
     <form method="dialog" id="form">
       <h2>Ajouter une TV</h2>
       <label>Nom <input id="f-name" required maxlength="40" placeholder="Salon" /></label>
+      <button type="button" id="scan" class="b pill">Chercher sur le réseau</button>
+      <div id="found"></div>
       <label>Marque
         <select id="f-brand">
-          <option value="samsung">Samsung</option>
-          <option value="lg">LG</option>
-          <option value="panasonic">Panasonic</option>
+          <optgroup label="Wi-Fi (TV connectée)">
+            <option value="samsung">Samsung</option>
+            <option value="lg">LG</option>
+            <option value="panasonic">Panasonic</option>
+            <option value="sony">Sony</option>
+            <option value="philips">Philips</option>
+            <option value="roku">Roku / TCL Roku</option>
+          </optgroup>
+          <optgroup label="Infrarouge (émetteur du téléphone Android)">
+            <option value="ir_samsung">Samsung (IR)</option>
+            <option value="ir_lg">LG (IR)</option>
+            <option value="ir_sony">Sony (IR)</option>
+          </optgroup>
         </select>
       </label>
-      <label>Adresse IP de la TV <input id="f-ip" required inputmode="decimal" placeholder="192.168.1.20" /></label>
-      <p class="hint">Allume la TV : une fenêtre de confirmation apparaîtra à l'écran au premier envoi (Samsung, LG).</p>
+      <label id="l-ip">Adresse IP de la TV <input id="f-ip" inputmode="decimal" placeholder="192.168.1.20" /></label>
+      <label id="l-psk" hidden>Clé PSK Sony <input id="f-psk" autocomplete="off" placeholder="réglée dans les paramètres réseau de la TV" /></label>
+      <label id="l-mac">Adresse MAC (facultatif, pour rallumer la TV) <input id="f-mac" placeholder="AA:BB:CC:DD:EE:FF" /></label>
+      <p class="hint">Allume la TV : une fenêtre de confirmation apparaîtra à l'écran au premier envoi (Samsung, LG). Seules les TV ajoutées ici sont contrôlées.</p>
       <div class="row"><button type="button" id="f-cancel" class="b pill">Annuler</button><button class="b pill ok2">Ajouter</button></div>
     </form>
   </dialog>

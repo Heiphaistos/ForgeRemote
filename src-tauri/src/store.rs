@@ -10,6 +10,8 @@ pub struct Tv {
     pub ip: String,
     #[serde(default)]
     pub token: Option<String>,
+    #[serde(default)]
+    pub mac: Option<String>,
 }
 
 pub struct Store { path: PathBuf, pub tvs: Vec<Tv> }
