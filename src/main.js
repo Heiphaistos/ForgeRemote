@@ -1,5 +1,6 @@
 import { irMarques, irSend } from "./ir.js";
 import { initLook } from "./look.js";
+import { btAdresse, btAppareils, btSend, btVisible } from "./bt.js";
 
 const invoke = window.__TAURI__.core.invoke;
 const $ = (s) => document.querySelector(s);
@@ -44,7 +45,8 @@ async function refresh(keep) {
 }
 
 async function envoyer(tv, k) {
-  if (tv.ir) irSend(tv.brand, k);
+  if (tv.brand === "bt") await btSend(tv.id, k);
+  else if (tv.ir) irSend(tv.brand, k);
   else await invoke("send_key", { id: tv.id, key: k });
 }
 
@@ -75,11 +77,18 @@ addEventListener("keydown", (e) => {
 
 // --- Formulaire : ajout / modification ---
 function formUi() {
-  const b = brandSel.value, ir = b.startsWith("ir_");
-  $("#l-ip").hidden = ir; $("#l-mac").hidden = ir; $("#detect").hidden = ir;
-  $("#l-psk").hidden = b !== "sony";
-  $("#f-ip").required = !ir;
+  const b = brandSel.value, local = b.startsWith("ir_") || b === "bt";
+  $("#l-ip").hidden = local; $("#l-mac").hidden = local; $("#detect").hidden = local;
+  $("#l-psk").hidden = b !== "sony"; $("#l-bt").hidden = b !== "bt";
+  $("#f-ip").required = !local;
+  if (b === "bt") remplirBt();
 }
+function remplirBt(choisi) {
+  const l = btAppareils();
+  $("#f-bt-dev").replaceChildren(...(l.length ? l : [{ name: "Aucun appareil appairé : rends le téléphone visible", address: "" }]).map((d) => new Option(d.name, d.address)));
+  if (choisi) $("#f-bt-dev").value = choisi;
+}
+$("#bt-visible").onclick = () => { btVisible(); setTimeout(() => remplirBt(), 8000); };
 brandSel.onchange = formUi;
 
 function openForm(tv) {
@@ -91,7 +100,9 @@ function openForm(tv) {
     $("#f-name").value = tv.name; brandSel.value = tv.brand; $("#f-ip").value = tv.ip;
     $("#f-mac").value = tv.mac ?? ""; $("#f-psk").placeholder = "laisser vide = clé inchangée";
   }
-  formUi(); dlg.showModal();
+  formUi();
+  if (tv?.brand === "bt") remplirBt(btAdresse(tv.id));
+  dlg.showModal();
 }
 $("#add").onclick = () => openForm();
 $("#edit").onclick = () => (cur() ? openForm(cur()) : say("Aucune TV à modifier", true));
@@ -133,7 +144,9 @@ $("#form").addEventListener("submit", async (e) => {
       if (!r) throw new Error(`Aucune TV reconnue à cette adresse. ${AIDE_RESEAU}`);
       brand = r.brand;
     }
+    if (brand === "bt" && !$("#f-bt-dev").value) throw new Error("Choisis la TV Bluetooth dans la liste (appaire d'abord le téléphone avec elle)");
     const t = await invoke(editing ? "update_tv" : "add_tv", { ...(editing ? { id: editing } : {}), ...f, brand });
+    if (brand === "bt") { try { localStorage.setItem(`bt:${t.id}`, $("#f-bt-dev").value); } catch {} }
     dlg.close();
     await refresh(t.id);
     say(`${t.name} : ${editing ? "modifiée" : "ajoutée"} (${t.brand})`);
@@ -142,7 +155,7 @@ $("#form").addEventListener("submit", async (e) => {
 
 $("#del").onclick = async () => {
   const tv = cur();
-  if (tv && confirm(`Retirer « ${tv.name} » ? Elle ne sera plus jamais contactée.`)) { await invoke("remove_tv", { id: tv.id }); refresh(); }
+  if (tv && confirm(`Retirer « ${tv.name} » ? Elle ne sera plus jamais contactée.`)) { await invoke("remove_tv", { id: tv.id }); try { localStorage.removeItem(`bt:${tv.id}`); } catch {} refresh(); }
 };
 sel.onchange = () => refresh(sel.value);
 $("#grp").onclick = () => {

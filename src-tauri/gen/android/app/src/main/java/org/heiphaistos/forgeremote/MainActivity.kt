@@ -41,5 +41,7 @@ class MainActivity : TauriActivity() {
   override fun onWebViewCreate(webView: WebView) {
     val ir = getSystemService(Context.CONSUMER_IR_SERVICE) as? ConsumerIrManager
     webView.addJavascriptInterface(IrBridge(ir), "ForgeIR")
+    // Télécommande Bluetooth HID : Android 9+ seulement.
+    if (Build.VERSION.SDK_INT >= 28) webView.addJavascriptInterface(BtBridge(this), "ForgeBT")
   }
 }

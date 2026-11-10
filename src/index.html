@@ -82,7 +82,7 @@
       <button id="look" class="link">Apparence</button>
       <button id="upd" class="link">Rechercher une mise à jour</button>
       <label><input type="checkbox" id="autoupd" /> Mises à jour auto</label>
-      <span id="ver">v0.4.0</span>
+      <span id="ver">v0.5.0</span>
     </footer>
   </main>
 
@@ -112,6 +112,9 @@
             <option value="philips">Philips</option>
             <option value="roku">Roku / TCL Roku</option>
           </optgroup>
+          <optgroup label="Bluetooth (téléphone Android)">
+            <option value="bt">Bluetooth : Android TV, Fire TV, TV avec Bluetooth</option>
+          </optgroup>
           <optgroup id="ir-group" label="Infrarouge (émetteur du téléphone Android) : toutes marques"></optgroup>
         </select>
       </label>
@@ -119,6 +122,11 @@
       <button type="button" id="detect" class="b pill">Détecter la marque de cette IP</button>
       <p id="detect-res" class="hint"></p>
       <label id="l-psk" hidden>Clé PSK Sony <input id="f-psk" autocomplete="off" placeholder="réglée dans les paramètres réseau de la TV" /></label>
+      <div id="l-bt" hidden>
+        <label>TV Bluetooth (déjà appairée avec ce téléphone) <select id="f-bt-dev"></select></label>
+        <button type="button" id="bt-visible" class="b pill">Rendre le téléphone visible (2 min)</button>
+        <p class="hint">Sur la TV : réglages Bluetooth &gt; ajouter un accessoire, puis choisis ce téléphone. Reviens ici et sélectionne la TV.</p>
+      </div>
       <label id="l-mac">Adresse MAC (facultatif, pour rallumer la TV) <input id="f-mac" placeholder="AA:BB:CC:DD:EE:FF" /></label>
       <p class="hint">Allume la TV : une fenêtre de confirmation apparaîtra à l'écran au premier envoi (Samsung, LG). Seules les TV ajoutées ici sont contrôlées.</p>
       <div class="row"><button type="button" id="f-cancel" class="b pill">Annuler</button><button id="f-submit" class="b pill ok2">Ajouter</button></div>

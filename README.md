@@ -11,9 +11,12 @@ Télécommande universelle de TV (Android, Windows, Linux). Tauri 2 : cœur Rust
 | Roku | Wi-Fi, ECP 8060 | aucun |
 | Philips JointSpace v6 | Wi-Fi, HTTP 1925 | aucun (sans authentification) |
 | Sony Bravia | Wi-Fi, IRCC-IP | clé PSK réglée sur la TV ; les codes sont lus sur la TV |
-| Samsung / LG / Sony | Infrarouge, émetteur du téléphone Android | aucun |
+| 95 marques (Samsung, LG, Sony, Panasonic, Philips, Sharp, Toshiba, Hisense, TCL, Vizio…) | Infrarouge, émetteur du téléphone Android | aucun |
+| Android TV, Fire TV, TV avec Bluetooth | Bluetooth : le téléphone se fait passer pour une télécommande/clavier (Android 9+) | appairage Bluetooth entre la TV et le téléphone |
 
-Android TV / Google TV (protocole Remote v2 à appairage chiffré) : pas encore géré.
+Android TV / Google TV : pas de protocole Wi-Fi propriétaire (appairage chiffré non géré) ; utilise le Bluetooth ou l'infrarouge.
+
+Codes infrarouge : base Flipper-IRDB (CC0), régénérables avec `tools/fetch_irdb.py` puis `tools/gen_ir_db.py` ; encodeurs vérifiés avec `node tools/ir-vectors.mjs`.
 
 ## Sécurité
 Seules les TV ajoutées à la liste sont contactées (IP privée obligatoire). « Chercher sur le réseau » liste les TV de
