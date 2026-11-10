@@ -57,7 +57,15 @@ pub async fn install(url: &str, name: &str, sums: &str) -> Result<(), String> {
     let f = dir.join(name);
     std::fs::write(&f, &data).map_err(|e| e.to_string())?;
     #[cfg(windows)]
-    { std::process::Command::new(&f).arg("/S").spawn().map_err(|e| e.to_string())?; Ok(()) }
+    {
+        // Installeur silencieux (par utilisateur), puis relance de la nouvelle version : un cmd détaché
+        // attend la fin de l'installation. Il survit à la fermeture de l'app, sans fenêtre console.
+        use std::os::windows::process::CommandExt;
+        let app = std::env::current_exe().map_err(|e| e.to_string())?;
+        let ligne = format!(r#"/D /S /C "start /wait "" "{}" /S && start "" "{}"""#, f.display(), app.display());
+        std::process::Command::new("cmd").raw_arg(ligne).creation_flags(0x0800_0000).spawn().map_err(|e| e.to_string())?;
+        Ok(())
+    }
     #[cfg(not(windows))]
     { Err("installation automatique : Windows seulement, ouvre la page de la release".into()) }
 }
