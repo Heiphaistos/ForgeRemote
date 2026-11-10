@@ -1,7 +1,34 @@
-# Tauri + Vanilla
+# ForgeRemote
 
-This template should help get you started developing with Tauri in vanilla HTML, CSS and Javascript.
+Télécommande universelle de TV (Android, Windows, Linux). Tauri 2 : cœur Rust + interface HTML/JS.
 
-## Recommended IDE Setup
+## Marques
+| Marque | Voie | Appairage |
+|---|---|---|
+| Samsung (Tizen 2016+) | Wi-Fi, wss 8002 | confirmation sur la TV, jeton mémorisé |
+| LG webOS | Wi-Fi, SSAP + socket pointeur | confirmation sur la TV, clé mémorisée |
+| Panasonic Viera | Wi-Fi, SOAP 55000 | aucun (modèles avant ~2018) |
+| Roku | Wi-Fi, ECP 8060 | aucun |
+| Philips JointSpace v6 | Wi-Fi, HTTP 1925 | aucun (sans authentification) |
+| Sony Bravia | Wi-Fi, IRCC-IP | clé PSK réglée sur la TV ; les codes sont lus sur la TV |
+| Samsung / LG / Sony | Infrarouge, émetteur du téléphone Android | aucun |
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+Android TV / Google TV (protocole Remote v2 à appairage chiffré) : pas encore géré.
+
+## Sécurité
+Seules les TV ajoutées à la liste sont contactées (IP privée obligatoire). « Chercher sur le réseau » liste les TV de
+marques gérées, sans rien contrôler. Les jetons restent dans le dossier de données de l'app, jamais dans l'interface.
+
+## Développement
+```
+npm install
+npm run tauri dev
+cd src-tauri && cargo test && cd .. && node src/ir.test.mjs
+npm run tauri build -- --bundles nsis          # Windows
+npm run tauri android build -- --apk --debug   # Android
+```
+Linux (deb, rpm, AppImage) : `.github/workflows/release.yml` (tag `vX.Y.Z`), ou en local avec les paquets webkit2gtk-4.1.
+
+## Mise à jour automatique
+Au démarrage puis toutes les 6 h (désactivable) : dernière release GitHub, SHA-256 vérifié via `SHA256SUMS`
+avant installation silencieuse (Windows). Android/Linux : lien vers la release.
