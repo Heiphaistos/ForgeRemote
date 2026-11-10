@@ -11,13 +11,19 @@
   <main class="remote">
     <header class="bar">
       <select id="tv" aria-label="TV"></select>
-      <button id="add" class="mini" title="Ajouter une TV">+</button>
-      <button id="del" class="mini" title="Retirer cette TV">&minus;</button>
+      <div class="acts">
+        <button id="edit" class="b pill">Modifier</button>
+        <button id="add" class="b pill">Ajouter</button>
+        <button id="del" class="b pill">Retirer</button>
+        <button id="grp" class="b pill" aria-pressed="false">Groupe</button>
+      </div>
+      <div id="group" hidden></div>
     </header>
 
     <div class="row top">
       <button data-k="power" class="b red round" title="Marche / Arrêt">&#x23FB;</button>
       <button data-k="source" class="b pill">Source</button>
+      <button type="button" id="num" class="b pill num-toggle">123</button>
       <button data-k="mute" class="b round" title="Muet">&#x1F507;</button>
     </div>
 
@@ -41,6 +47,7 @@
         <button data-k="right" class="b d right">&#9654;</button>
         <button data-k="down" class="b d down">&#9660;</button>
       </div>
+      <div id="touch" class="touch" role="application" aria-label="Pavé tactile">Glisse pour naviguer<br />Touche pour OK</div>
       <div class="rock">
         <button data-k="ch_up" class="b">&#9650;</button>
         <span>CH</span>
@@ -48,7 +55,7 @@
       </div>
     </div>
 
-    <div class="row">
+    <div class="row nav">
       <button data-k="back" class="b pill">Retour</button>
       <button data-k="home" class="b pill">Accueil</button>
       <button data-k="menu" class="b pill">Menu</button>
@@ -72,20 +79,31 @@
 
     <p id="msg" role="status"></p>
     <footer class="foot">
+      <button id="look" class="link">Apparence</button>
       <button id="upd" class="link">Rechercher une mise à jour</button>
       <label><input type="checkbox" id="autoupd" /> Mises à jour auto</label>
-      <span id="ver">v0.2.0</span>
+      <span id="ver">v0.3.0</span>
     </footer>
   </main>
 
+  <dialog id="look-dlg">
+    <h2>Apparence</h2>
+    <p class="hint">Esthétique</p>
+    <div id="themes" class="chips"></div>
+    <p class="hint">Disposition</p>
+    <div id="layouts" class="chips"></div>
+    <div class="row"><button type="button" id="look-close" class="b pill ok2">Fermer</button></div>
+  </dialog>
+
   <dialog id="dlg">
     <form method="dialog" id="form">
-      <h2>Ajouter une TV</h2>
+      <h2 id="dlg-title">Ajouter une TV</h2>
       <label>Nom <input id="f-name" required maxlength="40" placeholder="Salon" /></label>
       <button type="button" id="scan" class="b pill">Chercher sur le réseau</button>
       <div id="found"></div>
       <label>Marque
         <select id="f-brand">
+          <option value="auto" selected>Détection automatique (recommandé)</option>
           <optgroup label="Wi-Fi (TV connectée)">
             <option value="samsung">Samsung</option>
             <option value="lg">LG</option>
@@ -102,10 +120,12 @@
         </select>
       </label>
       <label id="l-ip">Adresse IP de la TV <input id="f-ip" inputmode="decimal" placeholder="192.168.1.20" /></label>
+      <button type="button" id="detect" class="b pill">Détecter la marque de cette IP</button>
+      <p id="detect-res" class="hint"></p>
       <label id="l-psk" hidden>Clé PSK Sony <input id="f-psk" autocomplete="off" placeholder="réglée dans les paramètres réseau de la TV" /></label>
       <label id="l-mac">Adresse MAC (facultatif, pour rallumer la TV) <input id="f-mac" placeholder="AA:BB:CC:DD:EE:FF" /></label>
       <p class="hint">Allume la TV : une fenêtre de confirmation apparaîtra à l'écran au premier envoi (Samsung, LG). Seules les TV ajoutées ici sont contrôlées.</p>
-      <div class="row"><button type="button" id="f-cancel" class="b pill">Annuler</button><button class="b pill ok2">Ajouter</button></div>
+      <div class="row"><button type="button" id="f-cancel" class="b pill">Annuler</button><button id="f-submit" class="b pill ok2">Ajouter</button></div>
     </form>
   </dialog>
 </body>

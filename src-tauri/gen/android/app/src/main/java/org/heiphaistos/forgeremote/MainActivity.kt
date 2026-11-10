@@ -1,7 +1,10 @@
 package org.heiphaistos.forgeremote
 
 import android.content.Context
+import android.content.pm.PackageManager
 import android.hardware.ConsumerIrManager
+import android.net.wifi.WifiManager
+import android.os.Build
 import android.os.Bundle
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
@@ -24,6 +27,15 @@ class MainActivity : TauriActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
+    // Android 17 (cible 37) bloque le réseau local sans cette autorisation runtime : sans elle,
+    // ni l'IP seule ni le scan ne fonctionnent. Ignorée silencieusement sur les versions sans cette permission.
+    val p = "android.permission.ACCESS_LOCAL_NETWORK"
+    if (Build.VERSION.SDK_INT >= 36 && checkSelfPermission(p) != PackageManager.PERMISSION_GRANTED) {
+      requestPermissions(arrayOf(p), 1)
+    }
+    // Le Wi-Fi Android jette le multicast (SSDP) sans verrou.
+    (applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager)
+      ?.createMulticastLock("forgeremote")?.apply { setReferenceCounted(false); acquire() }
   }
 
   override fun onWebViewCreate(webView: WebView) {
