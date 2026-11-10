@@ -1,4 +1,4 @@
-import { irSend } from "./ir.js";
+import { irMarques, irSend } from "./ir.js";
 import { initLook } from "./look.js";
 
 const invoke = window.__TAURI__.core.invoke;
@@ -11,6 +11,7 @@ const cur = () => tvs.find((t) => t.id === sel.value);
 const store = (k, v) => { try { v === undefined ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} };
 const load = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 const NEEDS_PAIR = ["samsung", "lg"];
+$("#ir-group").replaceChildren(...irMarques().map((m) => new Option(`${m.name} (IR)`, m.id)));
 const AIDE_RESEAU = "Vérifie que la TV est allumée, sur le même Wi-Fi, et que l'autorisation « réseau local / appareils à proximité » est accordée à l'app (Android).";
 
 // Groupe : TV cochées qui reçoivent chaque touche en même temps.

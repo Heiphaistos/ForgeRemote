@@ -82,7 +82,7 @@
       <button id="look" class="link">Apparence</button>
       <button id="upd" class="link">Rechercher une mise à jour</button>
       <label><input type="checkbox" id="autoupd" /> Mises à jour auto</label>
-      <span id="ver">v0.3.1</span>
+      <span id="ver">v0.4.0</span>
     </footer>
   </main>
 
@@ -112,11 +112,7 @@
             <option value="philips">Philips</option>
             <option value="roku">Roku / TCL Roku</option>
           </optgroup>
-          <optgroup label="Infrarouge (émetteur du téléphone Android)">
-            <option value="ir_samsung">Samsung (IR)</option>
-            <option value="ir_lg">LG (IR)</option>
-            <option value="ir_sony">Sony (IR)</option>
-          </optgroup>
+          <optgroup id="ir-group" label="Infrarouge (émetteur du téléphone Android) : toutes marques"></optgroup>
         </select>
       </label>
       <label id="l-ip">Adresse IP de la TV <input id="f-ip" inputmode="decimal" placeholder="192.168.1.20" /></label>

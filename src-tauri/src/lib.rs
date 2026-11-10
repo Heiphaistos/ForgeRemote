@@ -18,8 +18,10 @@ use tauri::{AppHandle, Manager, State};
 
 type St<'a> = State<'a, Mutex<Store>>;
 
-/// Marques infrarouge : l'émission se fait côté téléphone (interface), pas ici.
-const IR: [&str; 3] = ["ir_samsung", "ir_lg", "ir_sony"];
+/// Marques infrarouge (`ir_<marque>`, codes dans src/ir-db.js) : l'émission se fait côté téléphone, pas ici.
+fn is_ir(b: &str) -> bool {
+    b.strip_prefix("ir_").is_some_and(|m| !m.is_empty() && m.len() <= 30 && m.bytes().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit()))
+}
 
 fn brand_idx(b: &str) -> Result<usize, String> {
     keys::BRANDS.iter().position(|x| *x == b).ok_or_else(|| "marque non gérée".to_string())
@@ -27,7 +29,16 @@ fn brand_idx(b: &str) -> Result<usize, String> {
 
 /// Jamais le jeton ni la clé vers l'interface.
 fn vue(t: &Tv) -> Value {
-    json!({"id":t.id,"name":t.name,"brand":t.brand,"ip":t.ip,"paired":t.token.is_some(),"ir":IR.contains(&t.brand.as_str()),"wol":t.mac.is_some()})
+    json!({"id":t.id,"name":t.name,"brand":t.brand,"ip":t.ip,"paired":t.token.is_some(),"ir":is_ir(&t.brand),"wol":t.mac.is_some()})
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn marques_ir() {
+        assert!(super::is_ir("ir_samsung") && super::is_ir("ir_lg") && super::is_ir("ir_continentaledison"));
+        assert!(!super::is_ir("samsung") && !super::is_ir("ir_") && !super::is_ir("ir_Sam sung") && !super::is_ir("ir_../x"));
+    }
 }
 
 #[tauri::command]
@@ -35,7 +46,7 @@ fn list_tvs(st: St) -> Vec<Value> { st.lock().unwrap().tvs.iter().map(vue).colle
 
 #[tauri::command]
 fn add_tv(st: St, name: String, brand: String, ip: String, secret: Option<String>, mac: Option<String>) -> Result<Value, String> {
-    let ir = IR.contains(&brand.as_str());
+    let ir = is_ir(&brand);
     let ip = if ir { String::new() } else { brand_idx(&brand)?; valider_ip(&ip)?.to_string() };
     let name = name.trim().chars().take(40).collect::<String>();
     if name.is_empty() { return Err("nom requis".into()); }
@@ -54,7 +65,7 @@ fn add_tv(st: St, name: String, brand: String, ip: String, secret: Option<String
 /// sauf si la marque change ou si une nouvelle clé est fournie.
 #[tauri::command]
 fn update_tv(st: St, id: String, name: String, brand: String, ip: String, secret: Option<String>, mac: Option<String>) -> Result<Value, String> {
-    let ir = IR.contains(&brand.as_str());
+    let ir = is_ir(&brand);
     let ip = if ir { String::new() } else { brand_idx(&brand)?; valider_ip(&ip)?.to_string() };
     let name = name.trim().chars().take(40).collect::<String>();
     if name.is_empty() { return Err("nom requis".into()); }
@@ -86,7 +97,7 @@ fn remove_tv(st: St, id: String) -> Result<(), String> {
 
 async fn envoyer(st: &St<'_>, id: &str, key: Option<&str>) -> Result<(), String> {
     let tv = st.lock().unwrap().get(id)?; // verrou relâché avant tout await
-    if IR.contains(&tv.brand.as_str()) { return Err("TV infrarouge : envoi depuis le téléphone uniquement".into()); }
+    if is_ir(&tv.brand) { return Err("TV infrarouge : envoi depuis le téléphone uniquement".into()); }
     let b = brand_idx(&tv.brand)?;
     let code = key.map(|k| keys::code(k, b)).transpose()?;
     let tok = tv.token.as_deref();

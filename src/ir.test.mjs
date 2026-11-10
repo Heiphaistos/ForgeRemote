@@ -1,21 +1,28 @@
-// node src/ir.test.mjs : vérifie la forme des trames infrarouge.
+// node src/ir.test.mjs : cohérence de la base et des trames (la conformité aux vraies télécommandes
+// est vérifiée par tools/ir-vectors.mjs).
 import assert from "node:assert";
-const { nec, sirc } = await import("./ir.js");
+import DB from "./ir-db.js";
+import { encode, PROTOCOLES } from "./ir-enc.js";
 
-const n = nec(0x04, 0x08, false); // LG power : en-tête + 32 bits + arrêt
-assert.strictEqual(n.freq, 38000);
-assert.strictEqual(n.pattern.length, 2 + 64 + 1);
-assert.deepStrictEqual(n.pattern.slice(0, 2), [9000, 4500]);
-// adresse 0x04 LSB d'abord = 0,0,1,0,0,0,0,0 -> espaces 560,560,1690,...
-assert.deepStrictEqual(n.pattern.filter((_, i) => i >= 2 && i % 2 === 1).slice(0, 8), [560, 560, 1690, 560, 560, 560, 560, 560]);
+assert.ok(Object.keys(DB).length >= 50, "au moins 50 marques");
+assert.deepStrictEqual(DB.samsung.keys.power, ["Samsung32", 7, 2]); // codes connus, concordent avec la base
+assert.deepStrictEqual(DB.lg.keys.power, ["NEC", 4, 8]);
+assert.deepStrictEqual(DB.sony.keys.power, ["SIRC", 1, 21]);
+assert.ok(DB.panasonic.keys.power[0] === "Kaseikyo", "Panasonic en Kaseikyo");
 
-const s = nec(0x07, 0x07, true); // Samsung32 : en-tête 4500/4500, adresse répétée
-assert.deepStrictEqual(s.pattern.slice(0, 2), [4500, 4500]);
-assert.strictEqual(s.pattern.length, 2 + 64 + 1);
-
-const r = sirc(1, 21); // Sony power : 3 trames de 12 bits
-assert.strictEqual(r.freq, 40000);
-assert.strictEqual(r.pattern.filter((x) => x === 25000).length, 2);
-assert.strictEqual(r.pattern.length % 2, 1); // impulsion/silence alternés, finit par une impulsion
-assert.ok(r.pattern.every((x) => x > 0));
-console.log("IR OK");
+let n = 0;
+for (const [marque, { keys }] of Object.entries(DB)) {
+  for (const [touche, [proto, a, c]] of Object.entries(keys)) {
+    assert.ok(PROTOCOLES.includes(proto), `${marque}/${touche} : protocole ${proto} non encodable`);
+    for (const t of [0, 1]) {
+      const { freq, pattern } = encode(proto, a, c, t);
+      assert.ok(freq >= 30000 && freq <= 60000, `${marque}/${touche} fréquence`);
+      assert.ok(pattern.length % 2 === 1 && pattern.every((x) => Number.isFinite(x) && x > 0), `${marque}/${touche} : trame invalide`);
+      n++;
+    }
+  }
+}
+// la bascule RC5/RC6 change la trame, pas les autres protocoles
+assert.notDeepStrictEqual(encode("RC5", 5, 12, 0).pattern, encode("RC5", 5, 12, 1).pattern);
+assert.deepStrictEqual(encode("NEC", 4, 8, 0).pattern, encode("NEC", 4, 8, 1).pattern);
+console.log(`IR OK (${n} trames de ${Object.keys(DB).length} marques)`);
