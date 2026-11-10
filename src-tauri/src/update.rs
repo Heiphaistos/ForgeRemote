@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::time::Duration;
 
-const REPO: &str = "Heiphaistos44/ForgeRemote";
+const REPO: &str = "Heiphaistos/ForgeRemote";
 const MAX: usize = 150 * 1024 * 1024;
 
 fn version(s: &str) -> Option<(u32, u32, u32)> {
@@ -79,7 +79,7 @@ mod tests {
     }
     #[test]
     fn urls() {
-        assert!(url_sure("https://github.com/Heiphaistos44/ForgeRemote/releases/download/v1/x"));
-        assert!(!url_sure("https://evil.com/Heiphaistos44/ForgeRemote/releases/download/v1/x"));
+        assert!(url_sure("https://github.com/Heiphaistos/ForgeRemote/releases/download/v1/x"));
+        assert!(!url_sure("https://evil.com/Heiphaistos/ForgeRemote/releases/download/v1/x"));
     }
 }

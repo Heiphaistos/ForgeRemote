@@ -1,8 +1,8 @@
 name: release
-# Se déclenche seulement sur un tag vX.Y.Z. Rien n'est publié tant qu'aucun tag n'est poussé.
+# Lancement manuel seulement (Actions > release > Run workflow, branche = tag vX.Y.Z).
+# Les releases officielles sont publiées depuis le PC (APK signé avec la clé de D:\MDP).
 on:
-  push:
-    tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: read
