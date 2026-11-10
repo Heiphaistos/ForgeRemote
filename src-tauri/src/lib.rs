@@ -100,6 +100,10 @@ async fn check_update() -> Result<Option<Value>, String> { update::check().await
 
 #[tauri::command]
 async fn install_update(app: AppHandle, url: String, name: String, sums: String) -> Result<(), String> {
+    // Version portable (non installée par l'installeur) : on ne lance pas d'installeur à sa place.
+    if tauri::utils::platform::bundle_type() != Some(tauri::utils::config::BundleType::Nsis) {
+        return Err("version portable : télécharge la nouvelle version sur la page de la release".into());
+    }
     update::install(&url, &name, &sums).await?;
     app.exit(0); // l'installeur silencieux prend le relais
     Ok(())

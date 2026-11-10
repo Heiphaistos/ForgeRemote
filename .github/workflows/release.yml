@@ -13,7 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: windows-latest, name: windows, cmd: "npm run tauri build -- --bundles nsis", glob: "src-tauri/target/release/bundle/nsis/*-setup.exe" }
+          - { os: windows-latest, name: windows, cmd: "npm run tauri build -- --no-bundle; cp src-tauri/target/release/forgeremote.exe src-tauri/target/release/ForgeRemote_portable.exe; npm run tauri build -- --bundles nsis", glob: "src-tauri/target/release/ForgeRemote_portable.exe src-tauri/target/release/bundle/nsis/*-setup.exe" }
           - { os: ubuntu-22.04, name: linux, cmd: "npm run tauri build -- --bundles deb,rpm,appimage", glob: "src-tauri/target/release/bundle/*/*.{deb,rpm,AppImage}" }
           - { os: ubuntu-22.04, name: android, cmd: "npm run tauri android build -- --apk --debug --target aarch64 armv7", glob: "src-tauri/gen/android/app/build/outputs/apk/**/*.apk" }
     runs-on: ${{ matrix.os }}
