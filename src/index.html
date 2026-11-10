@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>ForgeRemote</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="main.js"></script>
+</head>
+<body>
+  <main class="remote">
+    <header class="bar">
+      <select id="tv" aria-label="TV"></select>
+      <button id="add" class="mini" title="Ajouter une TV">+</button>
+      <button id="del" class="mini" title="Retirer cette TV">&minus;</button>
+    </header>
+
+    <div class="row top">
+      <button data-k="power" class="b red round" title="Marche / Arrêt">&#x23FB;</button>
+      <button data-k="source" class="b pill">Source</button>
+      <button data-k="mute" class="b round" title="Muet">&#x1F507;</button>
+    </div>
+
+    <div class="pad">
+      <button data-k="1" class="b">1</button><button data-k="2" class="b">2</button><button data-k="3" class="b">3</button>
+      <button data-k="4" class="b">4</button><button data-k="5" class="b">5</button><button data-k="6" class="b">6</button>
+      <button data-k="7" class="b">7</button><button data-k="8" class="b">8</button><button data-k="9" class="b">9</button>
+      <button data-k="info" class="b small">Info</button><button data-k="0" class="b">0</button><button data-k="guide" class="b small">Guide</button>
+    </div>
+
+    <div class="mid">
+      <div class="rock">
+        <button data-k="vol_up" class="b">+</button>
+        <span>VOL</span>
+        <button data-k="vol_down" class="b">&minus;</button>
+      </div>
+      <div class="dpad">
+        <button data-k="up" class="b d up">&#9650;</button>
+        <button data-k="left" class="b d left">&#9664;</button>
+        <button data-k="ok" class="b d ok">OK</button>
+        <button data-k="right" class="b d right">&#9654;</button>
+        <button data-k="down" class="b d down">&#9660;</button>
+      </div>
+      <div class="rock">
+        <button data-k="ch_up" class="b">&#9650;</button>
+        <span>CH</span>
+        <button data-k="ch_down" class="b">&#9660;</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <button data-k="back" class="b pill">Retour</button>
+      <button data-k="home" class="b pill">Accueil</button>
+      <button data-k="menu" class="b pill">Menu</button>
+      <button data-k="exit" class="b pill">Quitter</button>
+    </div>
+
+    <div class="row media">
+      <button data-k="rew" class="b">&#9194;</button>
+      <button data-k="play" class="b">&#9654;</button>
+      <button data-k="pause" class="b">&#9208;</button>
+      <button data-k="stop" class="b">&#9632;</button>
+      <button data-k="ff" class="b">&#9193;</button>
+    </div>
+
+    <div class="row colors">
+      <button data-k="red" class="b c r"></button>
+      <button data-k="green" class="b c g"></button>
+      <button data-k="yellow" class="b c y"></button>
+      <button data-k="blue" class="b c u"></button>
+    </div>
+
+    <p id="msg" role="status"></p>
+  </main>
+
+  <dialog id="dlg">
+    <form method="dialog" id="form">
+      <h2>Ajouter une TV</h2>
+      <label>Nom <input id="f-name" required maxlength="40" placeholder="Salon" /></label>
+      <label>Marque
+        <select id="f-brand">
+          <option value="samsung">Samsung</option>
+          <option value="lg">LG</option>
+          <option value="panasonic">Panasonic</option>
+        </select>
+      </label>
+      <label>Adresse IP de la TV <input id="f-ip" required inputmode="decimal" placeholder="192.168.1.20" /></label>
+      <p class="hint">Allume la TV : une fenêtre de confirmation apparaîtra à l'écran au premier envoi (Samsung, LG).</p>
+      <div class="row"><button type="button" id="f-cancel" class="b pill">Annuler</button><button class="b pill ok2">Ajouter</button></div>
+    </form>
+  </dialog>
+</body>
+</html>
