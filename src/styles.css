@@ -10,14 +10,14 @@
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
 html, body { margin: 0; background: var(--page-bg); color: var(--txt); font: 15px system-ui, sans-serif; }
-body { min-height: 100vh; display: flex; justify-content: center; padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom); background-attachment: fixed; }
+body { min-height: 100vh; display: flex; justify-content: center; padding: env(safe-area-inset-top) 8px env(safe-area-inset-bottom); background-attachment: fixed; }
 .remote { width: 100%; max-width: 372px; background: var(--body-bg); border: var(--body-border); color: var(--ink); border-radius: 36px; padding: 18px 18px 14px; margin: 12px 0;
   box-shadow: var(--remote-shadow); display: flex; flex-direction: column; gap: 14px; }
 .bar { display: flex; flex-direction: column; gap: 8px; }
 .bar select { width: 100%; min-width: 0; }
 select, input { background: var(--btn); color: var(--txt); border: var(--field-border); border-radius: 10px; padding: 8px 10px; font: inherit; width: 100%; }
-.acts { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
-.acts .b { min-height: 34px; font-size: 12px; padding-left: 6px; padding-right: 6px; flex: 0 1 auto; }
+.acts { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; }
+.acts .b { min-height: 34px; font-size: 11.5px; padding-left: 4px; padding-right: 4px; flex: 0 1 auto; }
 .acts .b[aria-pressed="true"] { background: var(--acc); color: var(--on-acc); }
 #group { display: flex; flex-wrap: wrap; gap: 6px 12px; padding: 6px 4px; font-size: 13px; }
 #group[hidden], dialog [hidden] { display: none; }

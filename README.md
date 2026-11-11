@@ -51,6 +51,10 @@ avant installation silencieuse (Windows). Android/Linux : lien vers la release.
 - Noms de TV décodés (`65&quot;` -> `65"`), MAC lue dans la table ARP puis l'API de la TV.
 - Correctif : le bandeau « Installer » ne s'affiche plus en permanence.
 
+## Nouveautés 0.9.3
+
+- Correctif : dans la fenêtre Windows (barre de défilement comprise), les cinq boutons Modifier/Ajouter/Dupliquer/Retirer/Groupe tiennent sur une seule ligne (marges latérales réduites).
+
 ## Nouveautés 0.9.2
 
 - Correctif : le bouton « Groupe » ne dépasse plus de la télécommande (télécommande un peu plus large, boutons d'action sur une seule ligne).
