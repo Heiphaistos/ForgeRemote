@@ -39,6 +39,33 @@ const K: &[Row] = &[
     ("green", ["KEY_GREEN", "GREEN", "NRC_GREEN-ONOFF", "", "GreenColour", "Green"]),
     ("yellow", ["KEY_YELLOW", "YELLOW", "NRC_YELLOW-ONOFF", "", "YellowColour", "Yellow"]),
     ("blue", ["KEY_CYAN", "BLUE", "NRC_BLUE-ONOFF", "", "BlueColour", "Blue"]),
+    // Touches supplémentaires : noms vérifiés dans les sources publiques (jaruba/ha-samsungtv-tizen Key_codes.md,
+    // bscpylgtv buttons.py, panasonic-viera keys.py, doc Roku ECP). Vide = absent de la marque.
+    ("tools", ["KEY_TOOLS", "QMENU", "NRC_SUBMENU-ONOFF", "", "", ""]),
+    ("prev_ch", ["KEY_PRECH", "", "NRC_R_TUNE-ONOFF", "", "", ""]),
+    ("ch_list", ["KEY_CH_LIST", "LIST", "", "", "", ""]),
+    ("subtitle", ["KEY_SUB_TITLE", "CC", "NRC_STTL-ONOFF", "", "", ""]),
+    ("teletext", ["KEY_TTX_MIX", "TELETEXT", "NRC_TEXT-ONOFF", "", "", ""]),
+    ("aspect", ["KEY_PICTURE_SIZE", "ASPECT_RATIO", "NRC_ASPECT-ONOFF", "", "", ""]),
+    ("sleep", ["KEY_SLEEP", "TIMER", "NRC_OFFTIMER-ONOFF", "", "", ""]),
+    ("rec", ["KEY_REC", "RECORD", "NRC_REC-ONOFF", "", "", ""]),
+    ("fav", ["KEY_FAVCH", "", "NRC_FAVORITE-ONOFF", "", "", ""]),
+    ("audio_desc", ["KEY_AD", "AD", "", "", "", ""]),
+    ("tv", ["KEY_TV", "TV", "NRC_TV-ONOFF", "", "", ""]),
+    ("apps", ["KEY_APP_LIST", "MYAPPS", "NRC_APPS-ONOFF", "", "", ""]),
+    ("netflix", ["", "NETFLIX", "NRC_NETFLIX-ONOFF", "", "", ""]),
+    ("prime", ["", "AMAZON", "", "", "", ""]),
+    ("search", ["", "SEARCH", "", "Search", "", ""]),
+    ("replay", ["KEY_INSTANT_REPLAY", "", "", "InstantReplay", "", ""]),
+    ("dash", ["KEY_PLUS100", "DASH", "", "", "", ""]),
+    ("mode_3d", ["", "3D_MODE", "NRC_3D-ONOFF", "", "", ""]),
+    ("power_on", ["KEY_POWERON", "", "", "PowerOn", "", ""]),
+    ("power_off", ["KEY_POWEROFF", "", "", "PowerOff", "", ""]),
+    ("hdmi", ["KEY_HDMI", "", "", "", "", ""]),
+    ("hdmi1", ["", "", "NRC_HDMI1-ONOFF", "InputHDMI1", "", ""]),
+    ("hdmi2", ["", "", "NRC_HDMI2-ONOFF", "InputHDMI2", "", ""]),
+    ("hdmi3", ["", "", "NRC_HDMI3-ONOFF", "InputHDMI3", "", ""]),
+    ("hdmi4", ["", "", "NRC_HDMI4-ONOFF", "InputHDMI4", "", ""]),
 ];
 
 pub const BRANDS: [&str; 6] = ["samsung", "lg", "panasonic", "roku", "philips", "sony"];
@@ -57,7 +84,8 @@ mod tests {
     use super::*;
     #[test]
     fn samsung_complet_et_vides_refuses() {
-        assert!(K.iter().all(|k| !k.1[0].is_empty()));
+        assert!(K.iter().take(37).all(|k| !k.1[0].is_empty()));
+        assert!(code("tools", 0).is_ok() && code("tools", 3).is_err() && code("hdmi2", 3).unwrap() == "InputHDMI2");
         assert_eq!(code("vol_up", 3).unwrap(), "VolumeUp");
         assert!(code("menu", 3).is_err());
         assert!(code("nope", 0).is_err());

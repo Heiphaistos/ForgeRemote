@@ -1,4 +1,4 @@
-import { irMarques, irSend } from "./ir.js";
+import { irMarques, irPowerWifi, irSend } from "./ir.js";
 import { initLook } from "./look.js";
 import { btAdresse, btAppareils, btSend, btVisible } from "./bt.js";
 
@@ -38,7 +38,7 @@ async function refresh(keep) {
   sel.replaceChildren(...tvs.map((t) => new Option(`${t.name} (${t.brand})`, t.id)));
   if (keep) sel.value = keep;
   buildGroup();
-  if (!tvs.length) say("Ajoute ta première TV avec le bouton Ajouter");
+  if (!tvs.length) say(irPowerWifi("samsung") ? "Ajoute ta TV : choisis sa marque « (IR) » pour l'allumer sans appairage ni IP" : "Ajoute ta première TV avec le bouton Ajouter");
   else if (!cur().paired && NEEDS_PAIR.includes(cur().brand)) say("TV non appairée : appuie sur une touche et accepte sur la TV");
   else say("");
   store("tv", sel.value);
@@ -47,6 +47,10 @@ async function refresh(keep) {
 async function envoyer(tv, k) {
   if (tv.brand === "bt") await btSend(tv.id, k);
   else if (tv.ir) irSend(tv.brand, k);
+  else if (k === "power" && tv.power === "ir") {
+    if (!irPowerWifi(tv.brand)) throw new Error("Infrarouge indisponible ici (pas d'émetteur ou marque sans code IR) : passe ce profil en Wi-Fi ou Auto");
+    irSend(`ir_${tv.brand}`, k);
+  } else if (k === "power" && tv.power !== "wifi" && irPowerWifi(tv.brand)) irSend(`ir_${tv.brand}`, k);
   else await invoke("send_key", { id: tv.id, key: k });
 }
 
@@ -76,8 +80,19 @@ addEventListener("keydown", (e) => {
 });
 
 // --- Formulaire : ajout / modification ---
+const GROUPES = [...brandSel.children];
+const modeSel = $("#f-mode");
+const modeDe = (b) => (b === "bt" ? "bt" : b.startsWith("ir_") ? "ir" : "wifi");
+/** Affiche seulement les marques du mode choisi (Wi-Fi / infrarouge / Bluetooth). */
+function filtrerMarques(mode, brand) {
+  const g = { wifi: GROUPES.slice(0, 2), bt: [GROUPES[2]], ir: [GROUPES[3]] }[mode];
+  brandSel.replaceChildren(...g);
+  brandSel.value = brand && [...brandSel.querySelectorAll("option")].some((o) => o.value === brand) ? brand : brandSel.querySelector("option").value;
+}
+modeSel.onchange = () => { filtrerMarques(modeSel.value); formUi(); };
 function formUi() {
   const b = brandSel.value, local = b.startsWith("ir_") || b === "bt";
+  $("#l-power").hidden = local; $("#scan").hidden = local;
   $("#l-ip").hidden = local; $("#l-mac").hidden = local; $("#detect").hidden = local;
   $("#l-psk").hidden = b !== "sony"; $("#l-bt").hidden = b !== "bt";
   $("#f-ip").required = !local;
@@ -91,21 +106,35 @@ function remplirBt(choisi) {
 $("#bt-visible").onclick = () => { btVisible(); setTimeout(() => remplirBt(), 8000); };
 brandSel.onchange = formUi;
 
-function openForm(tv) {
+function openForm(tv, prefill) {
   editing = tv?.id ?? null;
   $("#form").reset(); $("#found").replaceChildren(); $("#detect-res").textContent = "";
+  modeSel.value = prefill?.mode ?? (tv ? modeDe(tv.brand) : "wifi");
+  filtrerMarques(modeSel.value, tv?.brand);
+  $("#f-power").value = tv?.power ?? "auto";
   $("#dlg-title").textContent = tv ? "Modifier la TV" : "Ajouter une TV";
   $("#f-submit").textContent = tv ? "Enregistrer" : "Ajouter";
   if (tv) {
     $("#f-name").value = tv.name; brandSel.value = tv.brand; $("#f-ip").value = tv.ip;
     $("#f-mac").value = tv.mac ?? ""; $("#f-psk").placeholder = "laisser vide = clé inchangée";
   }
+  if (prefill) { $("#f-name").value = prefill.name; $("#f-ip").value = prefill.ip ?? ""; $("#f-mac").value = prefill.mac ?? ""; }
   formUi();
   if (tv?.brand === "bt") remplirBt(btAdresse(tv.id));
   dlg.showModal();
 }
 $("#add").onclick = () => openForm();
 $("#edit").onclick = () => (cur() ? openForm(cur()) : say("Aucune TV à modifier", true));
+/** Nouveau profil de la même TV dans l'autre mode (Wi-Fi <-> infrarouge) : IP et MAC repris. */
+$("#dup").onclick = () => {
+  const tv = cur();
+  if (!tv) return say("Aucune TV à dupliquer", true);
+  const mode = modeDe(tv.brand) === "wifi" ? "ir" : "wifi";
+  openForm(undefined, { mode, name: `${tv.name} (${mode === "ir" ? "IR" : "Wi-Fi"})`, ip: tv.ip, mac: tv.mac });
+  if (mode === "ir") { const m = irMarques().find((x) => x.id === `ir_${tv.brand}`); if (m) brandSel.value = m.id; }
+  else brandSel.value = "auto";
+  formUi();
+};
 $("#f-cancel").onclick = () => dlg.close();
 
 $("#detect").onclick = async () => {
@@ -136,7 +165,7 @@ $("#scan").onclick = async () => {
 
 $("#form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const f = { name: $("#f-name").value, ip: $("#f-ip").value, secret: $("#f-psk").value || null, mac: $("#f-mac").value || null };
+  const f = { name: $("#f-name").value, ip: $("#f-ip").value, secret: $("#f-psk").value || null, mac: $("#f-mac").value || null, power: $("#f-power").value };
   let brand = brandSel.value;
   try {
     if (brand === "auto") { // mode auto : on identifie la marque d'après l'IP
@@ -148,6 +177,7 @@ $("#form").addEventListener("submit", async (e) => {
     const t = await invoke(editing ? "update_tv" : "add_tv", { ...(editing ? { id: editing } : {}), ...f, brand });
     if (brand === "bt") { try { localStorage.setItem(`bt:${t.id}`, $("#f-bt-dev").value); } catch {} }
     dlg.close();
+    if (!f.mac && brand !== "bt" && !brand.startsWith("ir_")) invoke("learn_mac", { id: t.id }).then(() => refresh(t.id)).catch(() => {});
     await refresh(t.id);
     say(`${t.name} : ${editing ? "modifiée" : "ajoutée"} (${t.brand})`);
   } catch (err) { $("#detect-res").textContent = String(err.message ?? err); }
@@ -164,14 +194,42 @@ $("#grp").onclick = () => {
 };
 
 // --- Mise à jour ---
+// Un clic sur « Installer » : téléchargement + SHA-256 + installation + relance, sans passer par GitHub.
+// Windows installé : installeur silencieux ; portable : exe remplacé ; Android : APK vérifié puis écran système « Installer ».
+let majEnCours = null;
+function proposer(u) {
+  majEnCours = u;
+  $("#updtxt").textContent = `Version ${u.version} disponible`;
+  $("#updbar").hidden = false;
+  $("#updgo").disabled = false;
+}
+$("#updno").onclick = () => { $("#updbar").hidden = true; };
+$("#updgo").onclick = async () => {
+  const u = majEnCours; if (!u) return;
+  $("#updgo").disabled = true; say("Téléchargement et vérification de l'intégrité…");
+  try {
+    if (window.ForgeUpd) await installerAndroid(u);
+    else if (u.kind === "setup" || u.kind === "portable") { await invoke("install_update", { url: u.url, name: u.name, sums: u.sums }); say("Installation…"); }
+    else throw new Error(`Mise à jour automatique indisponible ici : ${u.page}`);
+  } catch (e) { say(String(e.message ?? e), true); $("#updgo").disabled = false; }
+};
+async function installerAndroid(u) {
+  if (!u.apk || !u.sums) throw new Error(`APK absent de la release : ${u.page}`);
+  window.ForgeUpd.install(u.apk.url, u.apk.name, u.sums);
+  for (;;) {
+    await new Promise((r) => setTimeout(r, 700));
+    const st = window.ForgeUpd.status();
+    if (st === "perm") say("Autorise « Installer des applis inconnues » pour ForgeRemote, puis reviens : l'installation reprendra seule.");
+    else if (st === "ok") return say("Confirme l'installation sur l'écran Android.");
+    else if (st.startsWith("err:")) throw new Error(st.slice(4));
+  }
+}
 async function checkUpdate(manuel) {
   try {
     const u = await invoke("check_update");
     if (!u) return manuel && say("ForgeRemote est à jour");
-    if (u.url && u.sums && confirm(`Version ${u.version} disponible. Installer maintenant ?`)) {
-      say("Téléchargement et vérification de l'intégrité…");
-      await invoke("install_update", { url: u.url, name: u.name, sums: u.sums });
-    } else say(`Version ${u.version} disponible : ${u.page}`);
+    proposer(u);
+    if (manuel) say(`Version ${u.version} disponible : clique sur Installer`);
   } catch (e) { manuel && say(String(e), true); }
 }
 $("#upd").onclick = () => checkUpdate(true);

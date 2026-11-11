@@ -14,6 +14,7 @@
       <div class="acts">
         <button id="edit" class="b pill">Modifier</button>
         <button id="add" class="b pill">Ajouter</button>
+        <button id="dup" class="b pill" title="Nouveau profil de la même TV (autre mode : Wi-Fi, infrarouge)">Dupliquer</button>
         <button id="del" class="b pill">Retirer</button>
         <button id="grp" class="b pill" aria-pressed="false">Groupe</button>
       </div>
@@ -77,12 +78,48 @@
       <button data-k="blue" class="b c u"></button>
     </div>
 
+    <details class="more">
+      <summary>Plus de touches</summary>
+      <div class="morepad">
+        <button data-k="tools" class="b small">Outils</button>
+        <button data-k="prev_ch" class="b small">Chaîne préc.</button>
+        <button data-k="ch_list" class="b small">Liste chaînes</button>
+        <button data-k="fav" class="b small">Favoris</button>
+        <button data-k="subtitle" class="b small">Sous-titres</button>
+        <button data-k="teletext" class="b small">Télétexte</button>
+        <button data-k="audio_desc" class="b small">Audiodesc.</button>
+        <button data-k="aspect" class="b small">Format image</button>
+        <button data-k="sleep" class="b small">Minuterie</button>
+        <button data-k="rec" class="b small">Enregistrer</button>
+        <button data-k="tv" class="b small">TV</button>
+        <button data-k="apps" class="b small">Applis</button>
+        <button data-k="search" class="b small">Recherche</button>
+        <button data-k="replay" class="b small">Rejouer</button>
+        <button data-k="dash" class="b small">&minus; / 100+</button>
+        <button data-k="mode_3d" class="b small">3D</button>
+        <button data-k="netflix" class="b small">Netflix</button>
+        <button data-k="prime" class="b small">Prime Video</button>
+        <button data-k="hdmi" class="b small">HDMI</button>
+        <button data-k="hdmi1" class="b small">HDMI 1</button>
+        <button data-k="hdmi2" class="b small">HDMI 2</button>
+        <button data-k="hdmi3" class="b small">HDMI 3</button>
+        <button data-k="hdmi4" class="b small">HDMI 4</button>
+        <button data-k="power_on" class="b small">Allumer</button>
+        <button data-k="power_off" class="b small">Éteindre</button>
+      </div>
+    </details>
+
+    <div id="updbar" hidden>
+      <span id="updtxt"></span>
+      <button id="updgo" class="b pill ok2">Installer</button>
+      <button id="updno" class="b pill">Plus tard</button>
+    </div>
     <p id="msg" role="status"></p>
     <footer class="foot">
       <button id="look" class="link">Apparence</button>
       <button id="upd" class="link">Rechercher une mise à jour</button>
       <label><input type="checkbox" id="autoupd" /> Mises à jour auto</label>
-      <span id="ver">v0.5.0</span>
+      <span id="ver">v0.6.0</span>
     </footer>
   </main>
 
@@ -101,6 +138,13 @@
       <label>Nom <input id="f-name" required maxlength="40" placeholder="Salon" /></label>
       <button type="button" id="scan" class="b pill">Chercher sur le réseau</button>
       <div id="found"></div>
+      <label>Mode de commande
+        <select id="f-mode">
+          <option value="wifi" selected>Wi-Fi (TV connectée au réseau)</option>
+          <option value="ir">Infrarouge (émetteur du téléphone, sans réseau ni appairage)</option>
+          <option value="bt">Bluetooth (Android TV, Fire TV)</option>
+        </select>
+      </label>
       <label>Marque
         <select id="f-brand">
           <option value="auto" selected>Détection automatique (recommandé)</option>
@@ -127,6 +171,13 @@
         <button type="button" id="bt-visible" class="b pill">Rendre le téléphone visible (2 min)</button>
         <p class="hint">Sur la TV : réglages Bluetooth &gt; ajouter un accessoire, puis choisis ce téléphone. Reviens ici et sélectionne la TV.</p>
       </div>
+      <label id="l-power">Marche / arrêt de ce profil
+        <select id="f-power">
+          <option value="auto" selected>Auto (infrarouge si le téléphone en a un, sinon Wi-Fi + réveil réseau)</option>
+          <option value="wifi">Wi-Fi seulement (touche + réveil réseau)</option>
+          <option value="ir">Infrarouge seulement (téléphone avec émetteur)</option>
+        </select>
+      </label>
       <label id="l-mac">Adresse MAC (facultatif, pour rallumer la TV) <input id="f-mac" placeholder="AA:BB:CC:DD:EE:FF" /></label>
       <p class="hint">Allume la TV : une fenêtre de confirmation apparaîtra à l'écran au premier envoi (Samsung, LG). Seules les TV ajoutées ici sont contrôlées.</p>
       <div class="row"><button type="button" id="f-cancel" class="b pill">Annuler</button><button id="f-submit" class="b pill ok2">Ajouter</button></div>

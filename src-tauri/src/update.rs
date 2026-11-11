@@ -26,7 +26,9 @@ fn attendu(sums: &str, nom: &str) -> Option<String> {
 
 fn url_sure(u: &str) -> bool { u.starts_with(&format!("https://github.com/{REPO}/releases/download/")) }
 
-/// Some({version, page, name, url, sums}) si une version plus récente existe.
+/// Some({version, page, kind, name, url, sums, apk}) si une version plus récente existe.
+/// kind : "setup" (installeur NSIS), "portable" (exe seul, remplacé sur place), "android" (APK : installé par le
+/// pont Kotlin), "manuel" (Linux : page de la release).
 pub async fn check() -> Result<Option<Value>, String> {
     let r: Value = client()?.get(format!("https://api.github.com/repos/{REPO}/releases/latest"))
         .send().await.map_err(|e| e.to_string())?.json().await.map_err(|e| e.to_string())?;
@@ -36,13 +38,27 @@ pub async fn check() -> Result<Option<Value>, String> {
     let trouve = |f: &dyn Fn(&str) -> bool| assets.iter()
         .find(|a| a["name"].as_str().is_some_and(f))
         .map(|a| (a["name"].clone(), a["browser_download_url"].clone()));
-    let exe = trouve(&|n| n.ends_with("-setup.exe"));
     let sums = trouve(&|n| n == "SHA256SUMS");
-    Ok(Some(json!({"version": tag.trim_start_matches('v'), "page": r["html_url"],
-        "name": exe.as_ref().map(|e| &e.0), "url": exe.as_ref().map(|e| &e.1), "sums": sums.map(|s| s.1)})))
+    let apk = trouve(&|n| n.ends_with("_android.apk"));
+    #[cfg(windows)]
+    let (kind, fichier) = if installeur_nsis() { ("setup", trouve(&|n| n.ends_with("-setup.exe"))) } else { ("portable", trouve(&|n| n.ends_with("_portable.exe"))) };
+    #[cfg(not(windows))]
+    let (kind, fichier): (&str, Option<(Value, Value)>) = (if cfg!(target_os = "android") { "android" } else { "manuel" }, None);
+    Ok(Some(json!({"version": tag.trim_start_matches('v'), "page": r["html_url"], "kind": kind,
+        "name": fichier.as_ref().map(|e| &e.0), "url": fichier.as_ref().map(|e| &e.1),
+        "apk": apk.as_ref().map(|e| json!({"name": e.0, "url": e.1})), "sums": sums.map(|s| s.1)})))
 }
 
-/// Télécharge, vérifie le SHA-256, lance l'installeur silencieux. L'appelant quitte l'app ensuite.
+#[cfg(windows)]
+pub fn installeur_nsis() -> bool { tauri::utils::platform::bundle_type() == Some(tauri::utils::config::BundleType::Nsis) }
+
+/// Supprime l'ancien exe laissé par une mise à jour portable (au démarrage).
+pub fn nettoyer() {
+    if let Ok(exe) = std::env::current_exe() { let _ = std::fs::remove_file(exe.with_extension("old")); }
+}
+
+/// Télécharge, vérifie le SHA-256, puis installe : installeur silencieux (NSIS) ou remplacement de l'exe portable.
+/// L'appelant quitte l'app ensuite ; la nouvelle version est relancée toute seule.
 pub async fn install(url: &str, name: &str, sums: &str) -> Result<(), String> {
     if !(url_sure(url) && url_sure(sums)) || name.contains(['/', '\\']) { return Err("URL de mise à jour non autorisée".into()); }
     let c = client()?;
@@ -58,16 +74,25 @@ pub async fn install(url: &str, name: &str, sums: &str) -> Result<(), String> {
     std::fs::write(&f, &data).map_err(|e| e.to_string())?;
     #[cfg(windows)]
     {
-        // Installeur silencieux (par utilisateur), puis relance de la nouvelle version : un cmd détaché
-        // attend la fin de l'installation. Il survit à la fermeture de l'app, sans fenêtre console.
         use std::os::windows::process::CommandExt;
         let app = std::env::current_exe().map_err(|e| e.to_string())?;
-        let ligne = format!(r#"/D /S /C "start /wait "" "{}" /S && start "" "{}"""#, f.display(), app.display());
-        std::process::Command::new("cmd").raw_arg(ligne).creation_flags(0x0800_0000).spawn().map_err(|e| e.to_string())?;
+        if installeur_nsis() {
+            // Installeur silencieux (par utilisateur), puis relance : un cmd détaché attend la fin de
+            // l'installation. Il survit à la fermeture de l'app, sans fenêtre console.
+            let ligne = format!(r#"/D /S /C "start /wait "" "{}" /S && start "" "{}"""#, f.display(), app.display());
+            std::process::Command::new("cmd").raw_arg(ligne).creation_flags(0x0800_0000).spawn().map_err(|e| e.to_string())?;
+        } else {
+            // Portable : un exe en cours d'exécution peut être renommé mais pas écrasé.
+            let old = app.with_extension("old");
+            let _ = std::fs::remove_file(&old);
+            std::fs::rename(&app, &old).map_err(|e| format!("remplacement impossible (dossier protégé ?) : {e}"))?;
+            if let Err(e) = std::fs::copy(&f, &app) { let _ = std::fs::rename(&old, &app); return Err(e.to_string()); }
+            std::process::Command::new(&app).creation_flags(0x0800_0000 | 0x0000_0008).spawn().map_err(|e| e.to_string())?;
+        }
         Ok(())
     }
     #[cfg(not(windows))]
-    { Err("installation automatique : Windows seulement, ouvre la page de la release".into()) }
+    { Err("installation automatique : Windows (et Android via l'application) seulement, ouvre la page de la release".into()) }
 }
 
 #[cfg(test)]

@@ -32,7 +32,7 @@ fn brand_idx(b: &str) -> Result<usize, String> {
 
 /// Jamais le jeton ni la clé vers l'interface.
 fn vue(t: &Tv) -> Value {
-    json!({"id":t.id,"name":t.name,"brand":t.brand,"ip":t.ip,"paired":t.token.is_some(),"ir":is_local(&t.brand),"wol":t.mac.is_some()})
+    json!({"id":t.id,"name":t.name,"brand":t.brand,"ip":t.ip,"paired":t.token.is_some(),"ir":is_local(&t.brand),"wol":t.mac.is_some(),"mac":t.mac,"power":t.power})
 }
 
 #[cfg(test)]
@@ -49,16 +49,17 @@ mod tests {
 fn list_tvs(st: St) -> Vec<Value> { st.lock().unwrap().tvs.iter().map(vue).collect() }
 
 #[tauri::command]
-fn add_tv(st: St, name: String, brand: String, ip: String, secret: Option<String>, mac: Option<String>) -> Result<Value, String> {
+fn add_tv(st: St, name: String, brand: String, ip: String, secret: Option<String>, mac: Option<String>, power: Option<String>) -> Result<Value, String> {
     let ir = is_local(&brand);
     let ip = if ir { String::new() } else { brand_idx(&brand)?; valider_ip(&ip)?.to_string() };
     let name = name.trim().chars().take(40).collect::<String>();
     if name.is_empty() { return Err("nom requis".into()); }
     let mac = mac.map(|m| m.trim().to_string()).filter(|m| !m.is_empty());
     if let Some(m) = &mac { wol::parse_mac(m)?; }
+    let power = store::power_valide(power)?;
     let token = secret.map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
     let id = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_err(|e| e.to_string())?.as_millis().to_string();
-    let tv = Tv { id, name, brand, ip, token, mac };
+    let tv = Tv { id, name, brand, ip, token, mac, power };
     let mut s = st.lock().unwrap();
     s.tvs.push(tv.clone());
     s.save()?;
@@ -68,19 +69,20 @@ fn add_tv(st: St, name: String, brand: String, ip: String, secret: Option<String
 /// Modifie un profil existant (nom, marque, IP, MAC, clé). Le jeton d'appairage est gardé
 /// sauf si la marque change ou si une nouvelle clé est fournie.
 #[tauri::command]
-fn update_tv(st: St, id: String, name: String, brand: String, ip: String, secret: Option<String>, mac: Option<String>) -> Result<Value, String> {
+fn update_tv(st: St, id: String, name: String, brand: String, ip: String, secret: Option<String>, mac: Option<String>, power: Option<String>) -> Result<Value, String> {
     let ir = is_local(&brand);
     let ip = if ir { String::new() } else { brand_idx(&brand)?; valider_ip(&ip)?.to_string() };
     let name = name.trim().chars().take(40).collect::<String>();
     if name.is_empty() { return Err("nom requis".into()); }
     let mac = mac.map(|m| m.trim().to_string()).filter(|m| !m.is_empty());
     if let Some(m) = &mac { wol::parse_mac(m)?; }
+    let power = store::power_valide(power)?;
     let secret = secret.map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
     let mut s = st.lock().unwrap();
     let t = s.tvs.iter_mut().find(|t| t.id == id).ok_or("TV introuvable")?;
     if t.brand != brand { t.token = None; }
     if secret.is_some() { t.token = secret; }
-    (t.name, t.brand, t.ip, t.mac) = (name, brand, ip, mac);
+    (t.name, t.brand, t.ip, t.mac, t.power) = (name, brand, ip, mac, power);
     let v = vue(t);
     s.save()?;
     Ok(v)
@@ -99,14 +101,32 @@ fn remove_tv(st: St, id: String) -> Result<(), String> {
     s.save()
 }
 
+/// Cherche la MAC de la TV dans la table ARP et la mémorise dans son profil.
+async fn apprendre_mac(st: &St<'_>, id: &str, ip: &str) -> Option<String> {
+    let m = wol::lookup_mac(ip).await?;
+    let mut s = st.lock().unwrap();
+    if let Some(t) = s.tvs.iter_mut().find(|t| t.id == id && t.mac.is_none()) { t.mac = Some(m.clone()); let _ = s.save(); }
+    Some(m)
+}
+
+/// Appelée après l'ajout d'une TV allumée : retient sa MAC pour pouvoir l'allumer depuis la veille.
+#[tauri::command]
+async fn learn_mac(st: St<'_>, id: String) -> Result<bool, String> {
+    let tv = st.lock().unwrap().get(&id)?;
+    if is_local(&tv.brand) || tv.mac.is_some() { return Ok(tv.mac.is_some()); }
+    Ok(apprendre_mac(&st, &id, &tv.ip).await.is_some())
+}
+
 async fn envoyer(st: &St<'_>, id: &str, key: Option<&str>) -> Result<(), String> {
     let tv = st.lock().unwrap().get(id)?; // verrou relâché avant tout await
     if is_local(&tv.brand) { return Err("TV infrarouge ou Bluetooth : envoi depuis le téléphone uniquement".into()); }
     let b = brand_idx(&tv.brand)?;
     let code = key.map(|k| keys::code(k, b)).transpose()?;
     let tok = tv.token.as_deref();
+    // MAC apprise automatiquement tant que la TV est allumée : permet de la réveiller plus tard sans rien saisir.
+    let mac = match &tv.mac { Some(m) => Some(m.clone()), None => apprendre_mac(st, id, &tv.ip).await };
     // Marche/arrêt avec MAC connue : on réveille d'abord (une TV en veille n'écoute plus le réseau).
-    let reveil = key == Some("power") && match &tv.mac { Some(m) => wol::wake(m).await.is_ok(), None => false };
+    let reveil = key == Some("power") && match &mac { Some(m) => wol::wake(m, &tv.ip).await.is_ok(), None => false };
     let res: Result<Option<String>, String> = match (b, code) {
         (0, c) => samsung::send(&tv.ip, tok, c).await,
         (1, c) => lg::send(&tv.ip, tok, c).await,
@@ -152,10 +172,6 @@ async fn check_update() -> Result<Option<Value>, String> { update::check().await
 
 #[tauri::command]
 async fn install_update(app: AppHandle, url: String, name: String, sums: String) -> Result<(), String> {
-    // Version portable (non installée par l'installeur) : on ne lance pas d'installeur à sa place.
-    if tauri::utils::platform::bundle_type() != Some(tauri::utils::config::BundleType::Nsis) {
-        return Err("version portable : télécharge la nouvelle version sur la page de la release".into());
-    }
     update::install(&url, &name, &sums).await?;
     app.exit(0); // l'installeur silencieux prend le relais
     Ok(())
@@ -166,10 +182,11 @@ pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
             let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+            update::nettoyer();
             app.manage(Mutex::new(Store::load(dir)));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![list_tvs, add_tv, update_tv, detect_tv, remove_tv, send_key, pair, scan_tvs, check_update, install_update])
+        .invoke_handler(tauri::generate_handler![list_tvs, add_tv, update_tv, detect_tv, remove_tv, send_key, learn_mac, pair, scan_tvs, check_update, install_update])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de ForgeRemote");
 }

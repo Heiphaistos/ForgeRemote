@@ -9,6 +9,9 @@ export const irMarques = () =>
 
 export const irDispo = () => !!window.ForgeIR?.hasIr?.();
 
+/** Marche/arrêt d'une TV Wi-Fi depuis la veille : le Wi-Fi ne l'atteint plus, l'infrarouge si (sans appairage, sans MAC). */
+export const irPowerWifi = (brand) => irDispo() && !!DB[brand]?.keys.power;
+
 const bascule = {}; // RC5/RC6 : le bit de bascule alterne à chaque appui pour que la TV distingue deux appuis identiques
 
 export function irSend(brand, key) {

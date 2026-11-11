@@ -24,6 +24,13 @@ class IrBridge(private val ir: ConsumerIrManager?) {
 }
 
 class MainActivity : TauriActivity() {
+  private var upd: UpdBridge? = null
+
+  override fun onResume() {
+    super.onResume()
+    upd?.resume() // retour de l'écran « sources inconnues » : poursuit l'installation
+  }
+
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
@@ -41,6 +48,7 @@ class MainActivity : TauriActivity() {
   override fun onWebViewCreate(webView: WebView) {
     val ir = getSystemService(Context.CONSUMER_IR_SERVICE) as? ConsumerIrManager
     webView.addJavascriptInterface(IrBridge(ir), "ForgeIR")
+    webView.addJavascriptInterface(UpdBridge(this).also { upd = it }, "ForgeUpd")
     // Télécommande Bluetooth HID : Android 9+ seulement.
     if (Build.VERSION.SDK_INT >= 28) webView.addJavascriptInterface(BtBridge(this), "ForgeBT")
   }

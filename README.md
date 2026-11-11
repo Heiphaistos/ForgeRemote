@@ -35,3 +35,11 @@ Linux (deb, rpm, AppImage) : `.github/workflows/release.yml` (tag `vX.Y.Z`), ou 
 ## Mise à jour automatique
 Au démarrage puis toutes les 6 h (désactivable) : dernière release GitHub, SHA-256 vérifié via `SHA256SUMS`
 avant installation silencieuse (Windows). Android/Linux : lien vers la release.
+
+## Nouveautés 0.6.0
+
+- Profil par mode : Wi-Fi, infrarouge ou Bluetooth ; « Dupliquer » crée le même profil dans l'autre mode.
+- Marche/arrêt par profil : auto, Wi-Fi seul (touche + réveil réseau) ou infrarouge seul.
+- Adresse MAC apprise automatiquement (table ARP) pour réveiller la TV en veille par le réseau ; réveil envoyé sur le /24 de la TV, ports 9 et 7.
+- 25 touches en plus (Outils, sous-titres, télétexte, format image, minuterie, HDMI 1 à 4, Netflix, Prime Video, Allumer, Éteindre...), en Wi-Fi.
+- Mise à jour en un clic (« Installer ») : Windows installé = installeur silencieux, portable = remplacement de l'exe, Android = APK vérifié (SHA-256) puis écran système d'installation.

@@ -12,6 +12,15 @@ pub struct Tv {
     pub token: Option<String>,
     #[serde(default)]
     pub mac: Option<String>,
+    /// Marche/arrêt d'un profil Wi-Fi : "auto" (infrarouge si le téléphone en a un), "wifi" ou "ir".
+    #[serde(default = "power_auto")]
+    pub power: String,
+}
+
+fn power_auto() -> String { "auto".into() }
+
+pub fn power_valide(p: Option<String>) -> Result<String, String> {
+    match p.as_deref() { None | Some("") | Some("auto") => Ok("auto".into()), Some("wifi") => Ok("wifi".into()), Some("ir") => Ok("ir".into()), _ => Err("mode marche/arrêt inconnu".into()) }
 }
 
 pub struct Store { path: PathBuf, pub tvs: Vec<Tv> }
