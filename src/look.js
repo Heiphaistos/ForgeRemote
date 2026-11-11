@@ -25,6 +25,20 @@ const THEMES = [
   { id: "foret", name: "Forêt", sw: ["#14301f", "#7bd88f"] },
   { id: "plex", name: "Plex", sw: ["#1f2326", "#e5a00d"] },
   { id: "sakura", name: "Sakura", sw: ["#f7dfe7", "#ff7aa8"] },
+  { id: "emeraude", name: "Émeraude", sw: ["#0b4a35", "#3dffb0"] },
+  { id: "amethyste", name: "Améthyste", sw: ["#3b1670", "#c58bff"] },
+  { id: "corail", name: "Corail", sw: ["#6b2a24", "#ff8a75"] },
+  { id: "turquoise", name: "Turquoise", sw: ["#0b4f55", "#2ef0e0"] },
+  { id: "bordeaux", name: "Bordeaux", sw: ["#3c0f20", "#ff7f9f"] },
+  { id: "graphite", name: "Graphite", sw: ["#2b2e33", "#9ba3b0"] },
+  { id: "bronze", name: "Bronze", sw: ["#5a3b1c", "#ffb35c"] },
+  { id: "arctique", name: "Arctique", sw: ["#dbe9f3", "#2b7fd0"] },
+  { id: "citron", name: "Citron", sw: ["#e9e27a", "#8a7d00"] },
+  { id: "bubblegum", name: "Bubblegum", sw: ["#ffb3de", "#e0289f"] },
+  { id: "matrix", name: "Matrix", sw: ["#021a07", "#2bff5a"] },
+  { id: "sunset2", name: "Désert", sw: ["#a35a2c", "#6e2a0a"] },
+  { id: "galaxie", name: "Galaxie", sw: ["#1b1040", "#ff6bd6"] },
+  { id: "steel", name: "Acier bleu", sw: ["#27394d", "#6fb7ff"] },
 ];
 // size = taille de fenêtre conseillée sur PC [largeur, hauteur]
 const LAYOUTS = [

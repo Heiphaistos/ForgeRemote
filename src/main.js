@@ -50,7 +50,7 @@ const peutWifi = (tv, k) => (k.startsWith("app:") ? tv.apps : !!tv.keys?.include
 const peutIrSecours = (tv, k) => irDispo() && irKeyFor(tv.brand, k) !== null; // TV Wi-Fi sans cette touche : l'infrarouge la fait
 function support(tv, k) {
   if (tv.brand === "bt") return BT_KEYS.includes(k);
-  if (tv.ir) return irKeyFor(tv.brand, k) !== null;
+  if (tv.ir) return irKeyFor(tv.brand, k) !== null || (!!tv.ip && peutWifi(tv, k));
   return peutWifi(tv, k) || peutIrSecours(tv, k);
 }
 /** Grise les touches que la/les TV ciblée(s) ne gèrent pas (au lieu d'une erreur au clic). */
@@ -65,7 +65,10 @@ function majTouches() {
 
 async function envoyer(tv, k) {
   if (tv.brand === "bt") await btSend(tv.id, k);
-  else if (tv.ir) irSend(tv.brand, k);
+  else if (tv.ir) { // IR : les applis passent par le Wi-Fi si le profil a une IP (pas de code IR pour Plex, etc.)
+    if (tv.ip && peutWifi(tv, k) && (k.startsWith("app:") || irKeyFor(tv.brand, k) === null || !irDispo())) await invoke("send_key", { id: tv.id, key: k });
+    else irSend(tv.brand, k);
+  }
   else if (k === "power" && tv.power === "ir") {
     if (!irPowerWifi(tv.brand)) throw new Error("Infrarouge indisponible ici (pas d'émetteur ou marque sans code IR) : passe ce profil en Wi-Fi ou Auto");
     irSend(`ir_${tv.brand}`, k);
@@ -81,7 +84,7 @@ async function press(k) {
   const res = await Promise.allSettled(cs.map((tv) => envoyer(tv, k)));
   const ko = res.flatMap((r, i) => (r.status === "rejected" ? [`${cs[i].name} : ${r.reason?.message ?? r.reason}`] : []));
   say(ko.join(" — "), ko.length > 0);
-  if (cs.some((t) => !t.paired && NEEDS_PAIR.includes(t.brand))) refresh(sel.value);
+  if (cs.some((t) => !t.paired && NEEDS_PAIR.includes(t.brand.replace(/^ir_/, "")) && t.ip)) refresh(sel.value);
 }
 
 // Maintenir volume / chaînes / flèches répète la touche (comme une vraie télécommande) ; clavier = un appui par Entrée.
@@ -167,7 +170,9 @@ modeSel.onchange = () => { filtrerMarques(modeSel.value); formUi(); };
 function formUi() {
   const b = brandSel.value, local = b.startsWith("ir_") || b === "bt";
   $("#l-power").hidden = local; $("#scan").hidden = local;
-  $("#l-ip").hidden = local; $("#l-mac").hidden = local; $("#detect").hidden = local;
+  const ir = b.startsWith("ir_");
+  $("#l-ip").hidden = b === "bt"; $("#l-mac").hidden = local; $("#detect").hidden = local;
+  $("#l-ip-t").textContent = ir ? "IP de la TV (facultatif : pour les applis Plex, Netflix…)" : "Adresse IP de la TV";
   $("#l-psk").hidden = b !== "sony"; $("#l-bt").hidden = b !== "bt";
   $("#f-ip").required = !local;
   if (b === "bt") remplirBt();

@@ -26,13 +26,29 @@ fn is_ir(b: &str) -> bool {
     b.strip_prefix("ir_").is_some_and(|m| !m.is_empty() && m.len() <= 30 && m.bytes().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit()))
 }
 
+/// Marque réseau d'un profil : `ir_samsung` + IP renseignée -> `samsung` (applis et touches Wi-Fi en complément de l'infrarouge).
+fn base(b: &str) -> &str { b.strip_prefix("ir_").unwrap_or(b) }
+
+/// IP d'un profil : obligatoire en Wi-Fi, facultative en infrarouge (applis), absente en Bluetooth.
+fn ip_profil(brand: &str, ip: &str) -> Result<String, String> {
+    if brand == "bt" || (is_ir(brand) && ip.trim().is_empty()) { return Ok(String::new()); }
+    if !is_ir(brand) { brand_idx(brand)?; }
+    Ok(valider_ip(ip)?.to_string())
+}
+
 fn brand_idx(b: &str) -> Result<usize, String> {
     keys::BRANDS.iter().position(|x| *x == b).ok_or_else(|| "marque non gérée".to_string())
 }
 
+/// Index de marque utilisable en Wi-Fi : profil Wi-Fi, ou profil infrarouge ayant une IP.
+fn wifi_idx(t: &Tv) -> Result<usize, String> {
+    if t.brand == "bt" || (is_ir(&t.brand) && t.ip.is_empty()) { return Err("pas de Wi-Fi".into()); }
+    brand_idx(base(&t.brand))
+}
+
 /// Jamais le jeton ni la clé vers l'interface.
 fn vue(t: &Tv) -> Value {
-    json!({"id":t.id,"name":t.name,"brand":t.brand,"ip":t.ip,"paired":t.token.is_some(),"ir":is_local(&t.brand),"wol":t.mac.is_some(),"mac":t.mac,"power":t.power,"keys":brand_idx(&t.brand).map(keys::supported).unwrap_or_default(),"apps":brand_idx(&t.brand).is_ok_and(|b| matches!(b, 0 | 1 | 3))})
+    json!({"id":t.id,"name":t.name,"brand":t.brand,"ip":t.ip,"paired":t.token.is_some(),"ir":is_local(&t.brand),"wol":t.mac.is_some(),"mac":t.mac,"power":t.power,"keys":wifi_idx(t).map(keys::supported).unwrap_or_default(),"apps":wifi_idx(t).is_ok_and(|b| matches!(b, 0 | 1 | 3))})
 }
 
 #[cfg(test)]
@@ -50,8 +66,7 @@ fn list_tvs(st: St) -> Vec<Value> { st.lock().unwrap().tvs.iter().map(vue).colle
 
 #[tauri::command]
 fn add_tv(st: St, name: String, brand: String, ip: String, secret: Option<String>, mac: Option<String>, power: Option<String>) -> Result<Value, String> {
-    let ir = is_local(&brand);
-    let ip = if ir { String::new() } else { brand_idx(&brand)?; valider_ip(&ip)?.to_string() };
+    let ip = ip_profil(&brand, &ip)?;
     let name = name.trim().chars().take(40).collect::<String>();
     if name.is_empty() { return Err("nom requis".into()); }
     let mac = mac.map(|m| m.trim().to_string()).filter(|m| !m.is_empty());
@@ -70,8 +85,7 @@ fn add_tv(st: St, name: String, brand: String, ip: String, secret: Option<String
 /// sauf si la marque change ou si une nouvelle clé est fournie.
 #[tauri::command]
 fn update_tv(st: St, id: String, name: String, brand: String, ip: String, secret: Option<String>, mac: Option<String>, power: Option<String>) -> Result<Value, String> {
-    let ir = is_local(&brand);
-    let ip = if ir { String::new() } else { brand_idx(&brand)?; valider_ip(&ip)?.to_string() };
+    let ip = ip_profil(&brand, &ip)?;
     let name = name.trim().chars().take(40).collect::<String>();
     if name.is_empty() { return Err("nom requis".into()); }
     let mac = mac.map(|m| m.trim().to_string()).filter(|m| !m.is_empty());
@@ -113,19 +127,18 @@ async fn apprendre_mac(st: &St<'_>, id: &str, brand: &str, ip: &str) -> Option<S
 #[tauri::command]
 async fn learn_mac(st: St<'_>, id: String) -> Result<bool, String> {
     let tv = st.lock().unwrap().get(&id)?;
-    if is_local(&tv.brand) || tv.mac.is_some() { return Ok(tv.mac.is_some()); }
-    Ok(apprendre_mac(&st, &id, &tv.brand, &tv.ip).await.is_some())
+    if wifi_idx(&tv).is_err() || tv.mac.is_some() { return Ok(tv.mac.is_some()); }
+    Ok(apprendre_mac(&st, &id, base(&tv.brand), &tv.ip).await.is_some())
 }
 
 async fn envoyer(st: &St<'_>, id: &str, key: Option<&str>) -> Result<(), String> {
     let tv = st.lock().unwrap().get(id)?; // verrou relâché avant tout await
-    if is_local(&tv.brand) { return Err("TV infrarouge ou Bluetooth : envoi depuis le téléphone uniquement".into()); }
-    let b = brand_idx(&tv.brand)?;
+    let b = wifi_idx(&tv).map_err(|_| "TV infrarouge ou Bluetooth sans IP : envoi depuis le téléphone uniquement (ajoute l'IP de la TV pour les applis)".to_string())?;
     let code = key.map(|k| keys::code(k, b)).transpose()?;
     let code = code.as_deref();
     let tok = tv.token.as_deref();
     // MAC apprise automatiquement tant que la TV est allumée : permet de la réveiller plus tard sans rien saisir.
-    let mac = match &tv.mac { Some(m) => Some(m.clone()), None => apprendre_mac(st, id, &tv.brand, &tv.ip).await };
+    let mac = match &tv.mac { Some(m) => Some(m.clone()), None => apprendre_mac(st, id, base(&tv.brand), &tv.ip).await };
     // Marche/arrêt avec MAC connue : on réveille d'abord (une TV en veille n'écoute plus le réseau).
     let reveil = key == Some("power") && match &mac { Some(m) => wol::wake(m, &tv.ip).await.is_ok(), None => false };
     let res: Result<Option<String>, String> = match (b, code) {
@@ -157,7 +170,7 @@ async fn send_text(st: St<'_>, id: String, text: String) -> Result<(), String> {
     let tv = st.lock().unwrap().get(&id)?; // verrou relâché avant tout await
     let tok = tv.token.as_deref();
     let cle = format!("TEXT:{text}");
-    match tv.brand.as_str() {
+    match base(&tv.brand) {
         "samsung" => samsung::send(&tv.ip, tok, Some(&cle)).await.map(|_| ()),
         "lg" => lg::send(&tv.ip, tok, Some(&cle)).await.map(|_| ()),
         "roku" => http::roku_text(&tv.ip, &text).await,

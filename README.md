@@ -51,6 +51,11 @@ avant installation silencieuse (Windows). Android/Linux : lien vers la release.
 - Noms de TV décodés (`65&quot;` -> `65"`), MAC lue dans la table ARP puis l'API de la TV.
 - Correctif : le bandeau « Installer » ne s'affiche plus en permanence.
 
+## Nouveautés 0.9.1
+
+- Profil infrarouge + IP facultative de la TV : les boutons d'applis (Plex, Disney+, YouTube, Netflix, Prime et tes raccourcis) s'activent et se lancent par le Wi-Fi, l'infrarouge restant utilisé pour tout le reste. Modifier le profil, renseigner l'IP.
+- 14 thèmes de plus (38 au total) : Émeraude, Améthyste, Corail, Turquoise, Bordeaux, Graphite, Bronze, Arctique, Citron, Bubblegum, Matrix, Désert, Galaxie, Acier bleu.
+
 ## Nouveautés 0.9.0 (cumul des versions 0.7 à 0.9)
 
 - Sécurité (audit interne) : liste blanche d'URL de mise à jour analysée (plus de contournement `../` / `%2e`), noms de fichiers stricts, dossier temporaire imprévisible, socket pointeur LG limité à la TV, redirections HTTP interdites vers les TV, jeton Samsung et code Sony nettoyés, sauvegarde Android désactivée (jetons TV), FileProvider restreint.
