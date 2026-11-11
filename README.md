@@ -54,6 +54,7 @@ avant installation silencieuse (Windows). Android/Linux : lien vers la release.
 ## Nouveautés 0.9.1
 
 - Profil infrarouge + IP facultative de la TV : les boutons d'applis (Plex, Disney+, YouTube, Netflix, Prime et tes raccourcis) s'activent et se lancent par le Wi-Fi, l'infrarouge restant utilisé pour tout le reste. Modifier le profil, renseigner l'IP.
+- Scènes (Paramètres > Scènes) : une suite de touches en un clic, avec attentes (ex. `power 5s hdmi1`) ; saisie directe d'un numéro de chaîne (Plus de touches).
 - 14 thèmes de plus (38 au total) : Émeraude, Améthyste, Corail, Turquoise, Bordeaux, Graphite, Bronze, Arctique, Citron, Bubblegum, Matrix, Désert, Galaxie, Acier bleu.
 
 ## Nouveautés 0.9.0 (cumul des versions 0.7 à 0.9)

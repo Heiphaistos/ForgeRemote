@@ -1,5 +1,6 @@
 import { irDispo, irKeyFor, irMarques, irPowerWifi, irSend } from "./ir.js";
 import { initLook } from "./look.js";
+import { initScenes } from "./scenes.js";
 import { BT_KEYS, btAdresse, btAppareils, btSend, btText, btVisible } from "./bt.js";
 
 const invoke = window.__TAURI__.core.invoke;
@@ -142,6 +143,7 @@ $("#apps-sugg").replaceChildren(...SUGGESTIONS.map(([l, a]) => { const c = docum
 $("#a-add").onclick = () => { ajouterApp($("#a-label").value, $("#a-name").value); $("#a-label").value = ""; $("#a-name").value = ""; };
 $("#a-reset").onclick = () => { apps = APPS_DEFAUT; saveApps(); };
 drawApps();
+initScenes(press, say, $);
 
 // Clavier (PC) : flèches, Entrée, Échap, chiffres, +/-, M, Page haut/bas, H.
 const MAP = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", Enter: "ok", Escape: "back", Backspace: "back",

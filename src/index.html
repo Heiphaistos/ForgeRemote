@@ -86,12 +86,17 @@
     </div>
 
     <div class="row apps" id="apps"></div>
+    <div class="row apps" id="scenes" hidden></div>
 
     <details class="more">
       <summary>Plus de touches</summary>
       <div class="txtbox">
         <input id="txt" maxlength="200" placeholder="Taper un texte sur la TV (recherche, mot de passe...)" autocomplete="off" />
         <button id="txt-go" class="b pill">Envoyer</button>
+      </div>
+      <div class="txtbox">
+        <input id="chan" inputmode="numeric" maxlength="4" placeholder="Aller à la chaîne n°…" autocomplete="off" />
+        <button id="chan-go" class="b pill">Aller</button>
       </div>
       <div class="morepad">
         <button data-k="tools" class="b small">Outils</button>
@@ -142,6 +147,7 @@
     <nav class="tabs" role="tablist">
       <button type="button" data-tab="look" aria-pressed="true">Apparence</button>
       <button type="button" data-tab="apps">Raccourcis</button>
+      <button type="button" data-tab="scenes">Scènes</button>
       <button type="button" data-tab="maj">Mises à jour</button>
     </nav>
     <section data-pane="look">
@@ -161,6 +167,15 @@
       <label>Nom du bouton <input id="a-label" maxlength="14" placeholder="Spotify" /></label>
       <label>Nom de l'appli sur la TV <input id="a-name" maxlength="40" placeholder="spotify" /></label>
       <div class="row"><button type="button" id="a-add" class="b pill">Ajouter</button><button type="button" id="a-reset" class="b pill">Par défaut</button></div>
+    </section>
+    <section data-pane="scenes" hidden>
+      <p class="hint">Une scène envoie plusieurs touches d'un clic : noms de touches séparés par des espaces, « 5s » = attendre 5 secondes (ex. : power 5s hdmi1). Le bouton apparaît sous les applis.</p>
+      <div id="sc-list"></div>
+      <p class="hint">Modèles</p>
+      <div id="sc-sugg" class="chips"></div>
+      <label>Nom du bouton <input id="sc-label" maxlength="14" placeholder="Film" /></label>
+      <label>Touches <input id="sc-steps" maxlength="200" placeholder="power 5s hdmi1 vol_down" /></label>
+      <div class="row"><button type="button" id="sc-add" class="b pill">Ajouter la scène</button></div>
     </section>
     <section data-pane="maj" hidden>
       <p id="maj-ver" class="hint"></p>

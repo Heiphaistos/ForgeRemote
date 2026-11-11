@@ -59,7 +59,7 @@ dialog label { display: block; margin: 8px 0; font-size: 13px; opacity: .9; }
 dialog label > * { margin-top: 4px; }
 .hint { font-size: 12px; opacity: .65; margin: 8px 0 12px; }
 .ok2 { background: var(--acc); color: var(--on-acc); }
-#scan-list .chip, #apps-sugg .chip { background: var(--btn); color: var(--txt); border: 1px solid #fff2; border-radius: 14px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+#scan-list .chip, #apps-sugg .chip, #sc-sugg .chip { background: var(--btn); color: var(--txt); border: 1px solid #fff2; border-radius: 14px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
 #detect-res { min-height: 1.2em; margin: 4px 0; }
 
 /* ===== Sélecteur d'apparence ===== */
@@ -87,7 +87,7 @@ dialog label > * { margin-top: 4px; }
   --btn-shadow: 5px 5px 11px #bcc2d0, -5px -5px 11px #ffffff; --btn-press: inset 3px 3px 7px #bcc2d0, inset -3px -3px 7px #ffffff;
   --remote-shadow: 14px 14px 34px #bcc2d0, -14px -14px 34px #ffffff; --dpad-bg: #d9deea; --field-border: 1px solid #c4cad8; }
 [data-theme="clair"] dialog { border-color: #c4cad8; }
-[data-theme="clair"] .opt, [data-theme="clair"] #scan-list .chip, #apps-sugg .chip { border-color: #c4cad8; }
+[data-theme="clair"] .opt, [data-theme="clair"] #scan-list .chip, #apps-sugg .chip, #sc-sugg .chip { border-color: #c4cad8; }
 /* AMOLED : noir pur, fins contours, accent orange */
 [data-theme="amoled"] { --bg: #000; --body: #000; --btn: #0c0c0c; --btn-h: #181818; --txt: #f2f2f2; --acc: #ff7a18; --on-acc: #111;
   --body-border: 1px solid #1f1f1f; --btn-border: 1px solid #262626; --btn-shadow: none; --btn-press: none; --remote-shadow: none; --dpad-bg: #080808; --field-border: 1px solid #2a2a2a; }
