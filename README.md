@@ -51,6 +51,10 @@ avant installation silencieuse (Windows). Android/Linux : lien vers la release.
 - Noms de TV décodés (`65&quot;` -> `65"`), MAC lue dans la table ARP puis l'API de la TV.
 - Correctif : le bandeau « Installer » ne s'affiche plus en permanence.
 
+## Nouveautés 0.9.9
+
+- Samsung récents : le lancement d'une appli ne dépasse plus le délai (le démarrage prend 3 à 5 s côté TV) ; vérifié sur une vraie QN70F : Plex, Netflix, Prime Video et YouTube se lancent en ~0,5 s côté appli, et la liste de ses applications est lue.
+
 ## Nouveautés 0.9.8
 
 - PC, latence : la session avec la TV (Samsung, LG) reste ouverte entre deux touches (plus de TLS + authentification à chaque appui : de ~90 ms à ~0 ms mesurés contre une fausse TV), et la recherche de l'adresse MAC ne ralentit plus les touches ordinaires.

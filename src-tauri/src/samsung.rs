@@ -107,14 +107,18 @@ pub async fn apps_rest(ip: &str) -> Vec<(String, String)> {
 }
 
 /// Lance une appli du catalogue par REST : Ok(true) = lancée, Ok(false) = pas dans le catalogue ou pas installée.
+/// POST direct (404 = pas installée sous cet identifiant, on essaie le suivant) : un aller-retour de moins qu'un test préalable.
 async fn lancer_rest(ip: &str, nom: &str) -> Result<bool, String> {
     let c = http()?;
-    for (cle, id) in CATALOGUE.iter().filter(|(cle, _)| nom.contains(cle) || cle.contains(nom)) {
-        let _ = cle;
-        if rest_nom(&c, ip, id).await.is_some() {
-            let r = c.post(format!("http://{ip}:8001/api/v2/applications/{id}")).send().await.map_err(|e| format!("TV injoignable : {e}"))?;
-            return if r.status().is_success() { Ok(true) } else { Err(format!("la TV refuse de lancer l'application ({})", r.status())) };
-        }
+    for (_, id) in CATALOGUE.iter().filter(|(cle, _)| nom.contains(cle) || cle.contains(nom)) {
+        // Le démarrage d'une appli prend 3 à 5 s : au-delà de 1,5 s sans erreur, la TV a bien reçu l'ordre (vérifié : l'appli passe « running »).
+        let r = match c.post(format!("http://{ip}:8001/api/v2/applications/{id}")).timeout(Duration::from_millis(1500)).send().await {
+            Ok(r) => r,
+            Err(e) if e.is_timeout() => return Ok(true),
+            Err(e) => return Err(format!("TV injoignable : {e}")),
+        };
+        if r.status().is_success() { return Ok(true); }
+        if r.status() != reqwest::StatusCode::NOT_FOUND { return Err(format!("la TV refuse de lancer l'application ({})", r.status())); }
     }
     Ok(false)
 }
@@ -186,5 +190,17 @@ mod tests {
             rt.block_on(super::send("127.0.0.1", Some("T"), Some("KEY_VOLUP"))).unwrap();
             println!("touche {i} : {} ms", t.elapsed().as_millis());
         }
+    }
+
+    /// Test manuel contre une vraie Samsung (IP_TV) : liste des applis puis lancement d'une appli (APPLI), sans jeton (REST).
+    #[test]
+    #[ignore]
+    fn reel_applis() {
+        crate::net::init(std::env::temp_dir().join("fr-reel"));
+        let ip = std::env::var("IP_TV").unwrap();
+        let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+        println!("LISTE: {:?}", rt.block_on(super::apps_rest(&ip)));
+        let t = std::time::Instant::now();
+        println!("LANCEMENT {}: {:?} en {} ms", std::env::var("APPLI").unwrap(), rt.block_on(super::send(&ip, None, Some(&format!("APP:{}", std::env::var("APPLI").unwrap())))), t.elapsed().as_millis());
     }
 }
