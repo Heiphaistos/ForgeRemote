@@ -1,6 +1,6 @@
 //! Mise à jour automatique : dernière release GitHub, intégrité SHA-256 (fichier SHA256SUMS de la
 //! release) vérifiée AVANT toute installation. Installation silencieuse sous Windows (NSIS /S).
-//! Ailleurs (Android, Linux) : l'utilisateur est renvoyé à la page de la release.
+//! Portable Windows : exe remplacé ; AppImage Linux : fichier remplacé ; Android : pont Kotlin ; macOS, deb, rpm : page de la release.
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::time::Duration;
@@ -24,7 +24,17 @@ fn attendu(sums: &str, nom: &str) -> Option<String> {
     })
 }
 
-fn url_sure(u: &str) -> bool { u.starts_with(&format!("https://github.com/{REPO}/releases/download/")) }
+/// URL analysée (pas un simple préfixe : « ../ » ou « %2e » ne doivent pas sortir du dépôt) : https, github.com, ce dépôt.
+pub fn url_sure(u: &str) -> bool {
+    let Ok(p) = reqwest::Url::parse(u) else { return false };
+    p.scheme() == "https" && p.host_str() == Some("github.com") && p.port().is_none() && p.username().is_empty() && p.password().is_none()
+        && p.path().starts_with(&format!("/{REPO}/releases/")) && !p.path().to_lowercase().contains("%2e") && !p.path().split('/').any(|s| s == ".." || s == ".")
+}
+
+/// Nom de fichier de la release : lettres, chiffres, « . _ - » seulement (jamais de guillemet, &, %, espace...).
+fn nom_sur(n: &str) -> bool {
+    !n.is_empty() && n.len() <= 100 && !n.contains("..") && n.chars().all(|c| c.is_ascii_alphanumeric() || "._-".contains(c))
+}
 
 /// Some({version, page, kind, name, url, sums, apk}) si une version plus récente existe.
 /// kind : "setup" (installeur NSIS), "portable" (exe seul, remplacé sur place), "android" (APK : installé par le
@@ -42,7 +52,9 @@ pub async fn check() -> Result<Option<Value>, String> {
     let apk = trouve(&|n| n.ends_with("_android.apk"));
     #[cfg(windows)]
     let (kind, fichier) = if installeur_nsis() { ("setup", trouve(&|n| n.ends_with("-setup.exe"))) } else { ("portable", trouve(&|n| n.ends_with("_portable.exe"))) };
-    #[cfg(not(windows))]
+    #[cfg(target_os = "linux")]
+    let (kind, fichier): (&str, Option<(Value, Value)>) = if std::env::var_os("APPIMAGE").is_some() { ("appimage", trouve(&|n| n.ends_with(".AppImage"))) } else { ("manuel", None) };
+    #[cfg(not(any(windows, target_os = "linux")))]
     let (kind, fichier): (&str, Option<(Value, Value)>) = (if cfg!(target_os = "android") { "android" } else { "manuel" }, None);
     Ok(Some(json!({"version": tag.trim_start_matches('v'), "page": r["html_url"], "kind": kind,
         "name": fichier.as_ref().map(|e| &e.0), "url": fichier.as_ref().map(|e| &e.1),
@@ -60,7 +72,7 @@ pub fn nettoyer() {
 /// Télécharge, vérifie le SHA-256, puis installe : installeur silencieux (NSIS) ou remplacement de l'exe portable.
 /// L'appelant quitte l'app ensuite ; la nouvelle version est relancée toute seule.
 pub async fn install(url: &str, name: &str, sums: &str) -> Result<(), String> {
-    if !(url_sure(url) && url_sure(sums)) || name.contains(['/', '\\']) { return Err("URL de mise à jour non autorisée".into()); }
+    if !(url_sure(url) && url_sure(sums) && nom_sur(name)) { return Err("URL de mise à jour non autorisée".into()); }
     let c = client()?;
     let sums_txt = c.get(sums).send().await.map_err(|e| e.to_string())?.text().await.map_err(|e| e.to_string())?;
     let want = attendu(&sums_txt, name).ok_or("somme SHA-256 absente de la release")?;
@@ -68,7 +80,9 @@ pub async fn install(url: &str, name: &str, sums: &str) -> Result<(), String> {
     if data.len() > MAX { return Err("fichier trop gros".into()); }
     let got: String = Sha256::digest(&data).iter().map(|b| format!("{b:02x}")).collect();
     if got != want { return Err("intégrité refusée : SHA-256 différent, mise à jour annulée".into()); }
-    let dir = std::env::temp_dir().join("forgeremote-update");
+    // Dossier à nom imprévisible : un autre processus ne peut pas viser le fichier entre vérification et lancement.
+    let alea = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+    let dir = std::env::temp_dir().join(format!("forgeremote-update-{}-{alea}", std::process::id()));
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let f = dir.join(name);
     std::fs::write(&f, &data).map_err(|e| e.to_string())?;
@@ -91,8 +105,19 @@ pub async fn install(url: &str, name: &str, sums: &str) -> Result<(), String> {
         }
         Ok(())
     }
-    #[cfg(not(windows))]
-    { Err("installation automatique : Windows (et Android via l'application) seulement, ouvre la page de la release".into()) }
+    #[cfg(target_os = "linux")]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let cible = std::env::var("APPIMAGE").map_err(|_| "installation automatique : AppImage seulement, ouvre la page de la release".to_string())?;
+        let nouveau = format!("{cible}.new");
+        std::fs::copy(&f, &nouveau).map_err(|e| format!("remplacement impossible (dossier protégé ?) : {e}"))?;
+        std::fs::set_permissions(&nouveau, std::fs::Permissions::from_mode(0o755)).map_err(|e| e.to_string())?;
+        std::fs::rename(&nouveau, &cible).map_err(|e| e.to_string())?; // remplace l'AppImage en cours d'exécution
+        std::process::Command::new(&cible).spawn().map_err(|e| e.to_string())?;
+        Ok(())
+    }
+    #[cfg(not(any(windows, target_os = "linux")))]
+    { Err("installation automatique : Windows, AppImage Linux et Android seulement, ouvre la page de la release".into()) }
 }
 
 #[cfg(test)]
@@ -109,6 +134,16 @@ mod tests {
         let s = "AAA  a.exe\r\nbbb *b-setup.exe\n";
         assert_eq!(attendu(s, "b-setup.exe").as_deref(), Some("bbb"));
         assert_eq!(attendu(s, "c"), None);
+    }
+    #[test]
+    fn urls_et_noms_sans_contournement() {
+        assert!(url_sure("https://github.com/Heiphaistos/ForgeRemote/releases/download/v1/x.exe"));
+        assert!(!url_sure("https://github.com/Heiphaistos/ForgeRemote/releases/download/../../../evil/repo/releases/download/v1/x.exe"));
+        assert!(!url_sure("https://github.com/Heiphaistos/ForgeRemote/releases/download/%2e%2e/%2e%2e/x"));
+        assert!(!url_sure("https://github.com.evil.com/Heiphaistos/ForgeRemote/releases/download/v1/x"));
+        assert!(!url_sure("https://user@github.com/Heiphaistos/ForgeRemote/releases/download/v1/x"));
+        assert!(!url_sure("http://github.com/Heiphaistos/ForgeRemote/releases/download/v1/x"));
+        assert!(nom_sur("ForgeRemote_0.7.0_x64-setup.exe") && !nom_sur("x\" & calc & \"") && !nom_sur("a/b") && !nom_sur("..") && !nom_sur(""));
     }
     #[test]
     fn urls() {

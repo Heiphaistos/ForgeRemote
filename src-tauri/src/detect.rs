@@ -10,12 +10,17 @@ use tokio::{net::{TcpStream, UdpSocket}, time::timeout};
 type Id = Option<String>; // Some(nom lisible) si la marque répond
 
 fn client() -> Option<reqwest::Client> {
-    reqwest::Client::builder().timeout(Duration::from_millis(1800)).build().ok()
+    reqwest::Client::builder().redirect(reqwest::redirect::Policy::none()).timeout(Duration::from_millis(1800)).build().ok()
 }
 
 async fn get(c: &reqwest::Client, url: String) -> Option<String> {
     let r = c.get(url).send().await.ok()?;
     if r.status().is_success() { r.text().await.ok() } else { None }
+}
+
+/// Noms renvoyés par les TV : « 65&quot; Neo QLED » -> « 65" Neo QLED ».
+fn decoder(s: &str) -> String {
+    s.replace("&quot;", "\"").replace("&#34;", "\"").replace("&apos;", "'").replace("&#39;", "'").replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&")
 }
 
 fn entre<'a>(s: &'a str, a: &str, b: &str) -> Option<&'a str> {
@@ -25,11 +30,11 @@ fn entre<'a>(s: &'a str, a: &str, b: &str) -> Option<&'a str> {
 
 async fn samsung(c: reqwest::Client, ip: Ipv4Addr) -> Id {
     let v: Value = serde_json::from_str(&get(&c, format!("http://{ip}:8001/api/v2/")).await?).ok()?;
-    Some(v["device"]["name"].as_str().or(v["name"].as_str()).unwrap_or("Samsung").to_string())
+    Some(decoder(v["device"]["name"].as_str().or(v["name"].as_str()).unwrap_or("Samsung")))
 }
 async fn roku(c: reqwest::Client, ip: Ipv4Addr) -> Id {
     let t = get(&c, format!("http://{ip}:8060/query/device-info")).await?;
-    Some(entre(&t, "<friendly-device-name>", "<").or(entre(&t, "<model-name>", "<")).unwrap_or("Roku").to_string())
+    Some(decoder(entre(&t, "<friendly-device-name>", "<").or(entre(&t, "<model-name>", "<")).unwrap_or("Roku")))
 }
 async fn panasonic(c: reqwest::Client, ip: Ipv4Addr) -> Id {
     let t = get(&c, format!("http://{ip}:55000/nrc/ddd.xml")).await?;
@@ -48,6 +53,21 @@ async fn sony(c: reqwest::Client, ip: Ipv4Addr) -> Id {
 async fn lg(ip: Ipv4Addr) -> Id {
     let ok = ws(&format!("wss://{ip}:3001"), 2).await.is_ok() || ws(&format!("ws://{ip}:3000"), 2).await.is_ok();
     ok.then(|| "LG webOS".to_string())
+}
+
+/// Adresse MAC Wi-Fi lue dans l'API de la TV allumée (marche aussi sur Android, où la table ARP est interdite).
+/// Samsung : GET :8001/api/v2/ -> device.wifiMac ; Roku : GET :8060/query/device-info -> <wifi-mac>.
+pub async fn mac_via_api(brand: &str, ip: &str) -> Option<String> {
+    let c = client()?;
+    let m = match brand {
+        "samsung" => {
+            let v: Value = serde_json::from_str(&get(&c, format!("http://{ip}:8001/api/v2/")).await?).ok()?;
+            v["device"]["wifiMac"].as_str()?.to_string()
+        }
+        "roku" => entre(&get(&c, format!("http://{ip}:8060/query/device-info")).await?, "<wifi-mac>", "<")?.to_string(),
+        _ => return None,
+    };
+    crate::wol::parse_mac(&m).ok().map(|b| b.iter().map(|x| format!("{x:02X}")).collect::<Vec<_>>().join(":"))
 }
 
 /// Identifie la marque de la TV à cette IP. None = rien de reconnu.
@@ -115,6 +135,11 @@ mod tests {
         let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
         let r = rt.block_on(super::probe("127.0.0.1".parse().unwrap())).expect("Roku reconnue");
         assert_eq!((r["brand"].as_str(), r["name"].as_str()), (Some("roku"), Some("Salon Roku")));
+    }
+
+    #[test]
+    fn noms_decodes() {
+        assert_eq!(super::decoder("65&quot; Neo QLED &amp; co"), "65\" Neo QLED & co");
     }
 
     #[test]

@@ -53,8 +53,12 @@ const K: &[Row] = &[
     ("audio_desc", ["KEY_AD", "AD", "", "", "", ""]),
     ("tv", ["KEY_TV", "TV", "NRC_TV-ONOFF", "", "", ""]),
     ("apps", ["KEY_APP_LIST", "MYAPPS", "NRC_APPS-ONOFF", "", "", ""]),
-    ("netflix", ["", "NETFLIX", "NRC_NETFLIX-ONOFF", "", "", ""]),
-    ("prime", ["", "AMAZON", "", "", "", ""]),
+    ("netflix", ["APP:netflix", "NETFLIX", "NRC_NETFLIX-ONOFF", "APP:netflix", "", ""]),
+    ("prime", ["APP:prime video", "AMAZON", "", "APP:prime video", "", ""]),
+    // « APP:nom » = lancer l'application de ce nom, retrouvée dans la liste d'applis de la TV (pas d'identifiant deviné).
+    ("plex", ["APP:plex", "APP:plex", "", "APP:plex", "", ""]),
+    ("youtube", ["APP:youtube", "APP:youtube", "", "APP:youtube", "", ""]),
+    ("disney", ["APP:disney", "APP:disney", "", "APP:disney", "", ""]),
     ("search", ["", "SEARCH", "", "Search", "", ""]),
     ("replay", ["KEY_INSTANT_REPLAY", "", "", "InstantReplay", "", ""]),
     ("dash", ["KEY_PLUS100", "DASH", "", "", "", ""]),
@@ -70,11 +74,24 @@ const K: &[Row] = &[
 
 pub const BRANDS: [&str; 6] = ["samsung", "lg", "panasonic", "roku", "philips", "sony"];
 
-/// Code de la touche pour une marque (index dans BRANDS).
-pub fn code(id: &str, brand: usize) -> Result<&'static str, String> {
+/// Identifiants de touches gérés par une marque Wi-Fi (index dans BRANDS).
+pub fn supported(brand: usize) -> Vec<&'static str> {
+    K.iter().filter(|k| k.1.get(brand).is_some_and(|c| !c.is_empty())).map(|k| k.0).collect()
+}
+
+/// Code de la touche pour une marque (index dans BRANDS). « app:nom » = raccourci d'application libre :
+/// lancée par son nom (liste d'applis de la TV) sur Samsung, LG et Roku seulement.
+pub fn code(id: &str, brand: usize) -> Result<String, String> {
+    if let Some(nom) = id.strip_prefix("app:") {
+        let nom = nom.trim().to_lowercase();
+        if nom.is_empty() || nom.chars().count() > 40 || !nom.chars().all(|c| c.is_alphanumeric() || " +-.&'".contains(c)) {
+            return Err("nom d'application invalide".into());
+        }
+        return if matches!(brand, 0 | 1 | 3) { Ok(format!("APP:{nom}")) } else { Err("lancement d'applications non géré par cette marque".into()) };
+    }
     let e = K.iter().find(|k| k.0 == id).ok_or(format!("touche inconnue : {id}"))?;
     match e.1.get(brand) {
-        Some(c) if !c.is_empty() => Ok(c),
+        Some(c) if !c.is_empty() => Ok(c.to_string()),
         _ => Err(format!("touche « {id} » non gérée par cette marque")),
     }
 }
@@ -87,6 +104,9 @@ mod tests {
         assert!(K.iter().take(37).all(|k| !k.1[0].is_empty()));
         assert!(code("tools", 0).is_ok() && code("tools", 3).is_err() && code("hdmi2", 3).unwrap() == "InputHDMI2");
         assert_eq!(code("vol_up", 3).unwrap(), "VolumeUp");
+        assert!(supported(0).contains(&"tools") && !supported(3).contains(&"tools") && supported(3).contains(&"hdmi2"));
+        assert_eq!(code("app:Disney+", 0).unwrap(), "APP:disney+");
+        assert!(code("app:", 0).is_err() && code("app:x/y", 0).is_err() && code("app:plex", 2).is_err());
         assert!(code("menu", 3).is_err());
         assert!(code("nope", 0).is_err());
     }

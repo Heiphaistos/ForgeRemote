@@ -59,8 +59,7 @@ dialog label { display: block; margin: 8px 0; font-size: 13px; opacity: .9; }
 dialog label > * { margin-top: 4px; }
 .hint { font-size: 12px; opacity: .65; margin: 8px 0 12px; }
 .ok2 { background: var(--acc); color: var(--on-acc); }
-#found { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
-#found .chip { background: var(--btn); color: var(--txt); border: 1px solid #fff2; border-radius: 14px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+#scan-list .chip, #apps-sugg .chip { background: var(--btn); color: var(--txt); border: 1px solid #fff2; border-radius: 14px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
 #detect-res { min-height: 1.2em; margin: 4px 0; }
 
 /* ===== Sélecteur d'apparence ===== */
@@ -88,7 +87,7 @@ dialog label > * { margin-top: 4px; }
   --btn-shadow: 5px 5px 11px #bcc2d0, -5px -5px 11px #ffffff; --btn-press: inset 3px 3px 7px #bcc2d0, inset -3px -3px 7px #ffffff;
   --remote-shadow: 14px 14px 34px #bcc2d0, -14px -14px 34px #ffffff; --dpad-bg: #d9deea; --field-border: 1px solid #c4cad8; }
 [data-theme="clair"] dialog { border-color: #c4cad8; }
-[data-theme="clair"] .opt, [data-theme="clair"] #found .chip { border-color: #c4cad8; }
+[data-theme="clair"] .opt, [data-theme="clair"] #scan-list .chip, #apps-sugg .chip { border-color: #c4cad8; }
 /* AMOLED : noir pur, fins contours, accent orange */
 [data-theme="amoled"] { --bg: #000; --body: #000; --btn: #0c0c0c; --btn-h: #181818; --txt: #f2f2f2; --acc: #ff7a18; --on-acc: #111;
   --body-border: 1px solid #1f1f1f; --btn-border: 1px solid #262626; --btn-shadow: none; --btn-press: none; --remote-shadow: none; --dpad-bg: #080808; --field-border: 1px solid #2a2a2a; }
@@ -128,4 +127,32 @@ dialog label > * { margin-top: 4px; }
 
 .more{margin:.5rem 0}.more summary{cursor:pointer;text-align:center;opacity:.8}
 .morepad{display:grid;grid-template-columns:repeat(auto-fill,minmax(5.5rem,1fr));gap:.35rem;margin-top:.5rem}
-#updbar{display:flex;gap:.5rem;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:.5rem .75rem;margin:.5rem 0;border-radius:.75rem;background:rgba(80,160,255,.18)}
+
+.row.apps{flex-wrap:wrap;gap:.4rem}.b.plex{background:#e5a00d;color:#1a1a1a;font-weight:700}
+
+#updbar[hidden]{display:none}
+
+#scan-list,#apps-sugg{display:flex;flex-wrap:wrap;gap:.4rem;margin:.5rem 0}#apps-list .row{justify-content:space-between;margin:.25rem 0}
+
+#apps-list .b{flex:0 0 auto}
+
+/* Thèmes ajoutés en 0.8.0 (le classique reste le défaut) */
+[data-theme="ocean"] { --bg: #04121f; --body: #082540; --btn: #0d3558; --btn-h: #14476f; --txt: #e6f6ff; --acc: #2bd4ff; --on-acc: #03202e;
+  --red: #ff5c6c; --grn: #31d6a0; --yel: #ffd166; --blu: #2b9cff; --btn-shadow: 0 3px 0 #02101c, inset 0 1px 0 #7fd8ff30; --btn-press: 0 1px 0 #02101c;
+  --remote-shadow: 0 12px 44px #000b, inset 0 1px 0 #7fd8ff30; --dpad-bg: #02101c66; --field-border: 1px solid #2bd4ff33; }
+[data-theme="foret"] { --bg: #0b1a12; --body: #14301f; --btn: #1d452c; --btn-h: #27603c; --txt: #ecfaef; --acc: #7bd88f; --on-acc: #08200f;
+  --red: #e5645a; --grn: #5fd17f; --yel: #e8c547; --blu: #4fa3d8; --btn-shadow: 0 3px 0 #08140d, inset 0 1px 0 #b4f5c425; --btn-press: 0 1px 0 #08140d;
+  --remote-shadow: 0 12px 44px #000b, inset 0 1px 0 #b4f5c425; --dpad-bg: #08140d77; --field-border: 1px solid #7bd88f33; }
+[data-theme="plex"] { --bg: #0c0c0d; --body: #1f2326; --btn: #2d3236; --btn-h: #3a4045; --txt: #f2f2f2; --acc: #e5a00d; --on-acc: #151515;
+  --btn-shadow: 0 3px 0 #0008, inset 0 1px 0 #ffffff14; --remote-shadow: 0 10px 40px #000c, inset 0 1px 0 #e5a00d33; --dpad-bg: #0005; --field-border: 1px solid #e5a00d44; }
+[data-theme="plex"] .d.ok { box-shadow: 0 0 14px #e5a00d88; }
+[data-theme="sakura"] { --bg: #2a1620; --body: #f7dfe7; --btn: #5b2b3f; --btn-h: #744059; --txt: #fff1f5; --ink: #4a2233; --acc: #ff7aa8; --on-acc: #3a0f20;
+  --red: #d6384f; --grn: #4f9a6a; --yel: #e2a93a; --blu: #5b87c7; --btn-shadow: 0 4px 0 #2d1220, inset 0 1px 0 #ffffff40; --btn-press: 0 1px 0 #2d1220;
+  --remote-shadow: 0 14px 36px #0009, inset 0 2px 0 #fff8, inset 0 -6px 0 #0001; --dpad-bg: #4a223322; --field-border: 1px solid #0003; }
+[data-theme="sakura"] .foot .link { color: #b23a68; }
+/* Clair : VOL/CH gardent un fond (sinon + et - flottent sans bouton) */
+[data-theme="clair"] .rock { box-shadow: var(--btn-shadow); }
+
+.txtbox{display:flex;gap:.4rem;margin:.5rem 0}.txtbox input{flex:1;min-width:0;padding:.5rem .7rem;border-radius:.7rem;border:var(--field-border);background:var(--btn);color:var(--txt)}
+
+.b.indispo,.b:disabled{opacity:.3;cursor:not-allowed;filter:saturate(.4)}

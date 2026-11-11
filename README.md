@@ -43,3 +43,21 @@ avant installation silencieuse (Windows). Android/Linux : lien vers la release.
 - Adresse MAC apprise automatiquement (table ARP) pour réveiller la TV en veille par le réseau ; réveil envoyé sur le /24 de la TV, ports 9 et 7.
 - 25 touches en plus (Outils, sous-titres, télétexte, format image, minuterie, HDMI 1 à 4, Netflix, Prime Video, Allumer, Éteindre...), en Wi-Fi.
 - Mise à jour en un clic (« Installer ») : Windows installé = installeur silencieux, portable = remplacement de l'exe, Android = APK vérifié (SHA-256) puis écran système d'installation.
+
+## Nouveautés 0.7.0
+
+- Raccourcis d'applications personnalisables (bouton « Raccourcis » en bas) : Plex, Netflix, YouTube, Prime, Disney+ par défaut ; ajout/retrait libre (suggestions + nom perso). L'appli est retrouvée par son nom dans la liste d'applis de la TV (Samsung, LG, Roku) ; secours par identifiants Samsung connus.
+- Recherche réseau dans une fenêtre au premier plan (avancement, résultat, relance, aide si la TV est éteinte).
+- Noms de TV décodés (`65&quot;` -> `65"`), MAC lue dans la table ARP puis l'API de la TV.
+- Correctif : le bandeau « Installer » ne s'affiche plus en permanence.
+
+## Nouveautés 0.9.0 (cumul des versions 0.7 à 0.9)
+
+- Sécurité (audit interne) : liste blanche d'URL de mise à jour analysée (plus de contournement `../` / `%2e`), noms de fichiers stricts, dossier temporaire imprévisible, socket pointeur LG limité à la TV, redirections HTTP interdites vers les TV, jeton Samsung et code Sony nettoyés, sauvegarde Android désactivée (jetons TV), FileProvider restreint.
+- 4 thèmes de plus (Océan, Forêt, Plex, Sakura) ; correctif du thème Clair.
+- Linux : mise à jour automatique de l'AppImage ; macOS (dmg universel, non signé) et paquets Linux ajoutés à la release par le workflow GitHub Actions.
+- Infrarouge : 350 codes ajoutés (Outils, HDMI 1 à 4, sous-titres, télétexte, minuterie, couleurs, Accueil... pour Samsung, LG, Sony, Panasonic, Philips et 90 autres marques), sans modifier aucun code existant (recoupés avec les codes Samsung connus). Une TV Wi-Fi sans une touche utilise l'infrarouge du téléphone en secours ; les touches qu'un profil ne gère pas sont grisées au lieu d'afficher une erreur.
+- Saisie de texte vers la TV (Samsung, LG, Roku) et maintien d'une touche (volume, chaînes, flèches) pour répéter.
+- Interface refaite en relief 3D (« Studio » par défaut, inclinaison selon le pointeur), 24 thèmes et 20 dispositions, tout réglable dans le bouton « Paramètres » (thèmes, dispositions, effets, raccourcis d'applis, mises à jour). « Classique » (rendu d'origine) reste disponible.
+- Bandeau de mise à jour explicite (« Installer maintenant » / « Plus tard »).
+- Parité des modes : Bluetooth gagne les couleurs, sous-titres, format d'image, 3D, dernière chaîne, favoris, enregistrement et la saisie de texte au clavier HID ; l'infrarouge compte 100 marques et plus de 2 500 touches.

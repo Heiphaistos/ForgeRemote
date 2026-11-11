@@ -5,12 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>ForgeRemote</title>
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="skin.css" />
   <script type="module" src="main.js"></script>
 </head>
 <body>
   <main class="remote">
     <header class="bar">
-      <select id="tv" aria-label="TV"></select>
+      <div class="topbar">
+        <select id="tv" aria-label="TV"></select>
+        <button id="settings" class="b gear" title="Paramètres" aria-label="Paramètres">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+          <span>Paramètres</span>
+        </button>
+      </div>
       <div class="acts">
         <button id="edit" class="b pill">Modifier</button>
         <button id="add" class="b pill">Ajouter</button>
@@ -78,8 +85,14 @@
       <button data-k="blue" class="b c u"></button>
     </div>
 
+    <div class="row apps" id="apps"></div>
+
     <details class="more">
       <summary>Plus de touches</summary>
+      <div class="txtbox">
+        <input id="txt" maxlength="200" placeholder="Taper un texte sur la TV (recherche, mot de passe...)" autocomplete="off" />
+        <button id="txt-go" class="b pill">Envoyer</button>
+      </div>
       <div class="morepad">
         <button data-k="tools" class="b small">Outils</button>
         <button data-k="prev_ch" class="b small">Chaîne préc.</button>
@@ -97,8 +110,6 @@
         <button data-k="replay" class="b small">Rejouer</button>
         <button data-k="dash" class="b small">&minus; / 100+</button>
         <button data-k="mode_3d" class="b small">3D</button>
-        <button data-k="netflix" class="b small">Netflix</button>
-        <button data-k="prime" class="b small">Prime Video</button>
         <button data-k="hdmi" class="b small">HDMI</button>
         <button data-k="hdmi1" class="b small">HDMI 1</button>
         <button data-k="hdmi2" class="b small">HDMI 2</button>
@@ -109,27 +120,54 @@
       </div>
     </details>
 
-    <div id="updbar" hidden>
-      <span id="updtxt"></span>
-      <button id="updgo" class="b pill ok2">Installer</button>
-      <button id="updno" class="b pill">Plus tard</button>
+    <div id="updbar" hidden role="alert">
+      <div class="updinfo"><strong>Mise à jour disponible</strong><span id="updtxt"></span></div>
+      <div class="updbtns">
+        <button id="updgo" class="b pill ok2" title="Télécharge, vérifie et installe la nouvelle version, puis relance l'application">Installer maintenant</button>
+        <button id="updno" class="b pill" title="Masquer ce message jusqu'au prochain démarrage">Plus tard</button>
+      </div>
     </div>
     <p id="msg" role="status"></p>
-    <footer class="foot">
-      <button id="look" class="link">Apparence</button>
-      <button id="upd" class="link">Rechercher une mise à jour</button>
-      <label><input type="checkbox" id="autoupd" /> Mises à jour auto</label>
-      <span id="ver">v0.6.0</span>
-    </footer>
+    <footer class="foot"><span id="ver">v0.9.0</span></footer>
   </main>
 
-  <dialog id="look-dlg">
-    <h2>Apparence</h2>
-    <p class="hint">Esthétique</p>
-    <div id="themes" class="chips"></div>
-    <p class="hint">Disposition</p>
-    <div id="layouts" class="chips"></div>
-    <div class="row"><button type="button" id="look-close" class="b pill ok2">Fermer</button></div>
+  <dialog id="scan-dlg">
+    <h2>Recherche des TV</h2>
+    <p id="scan-st" class="hint" role="status"></p>
+    <div id="scan-list" class="chips"></div>
+    <div class="row"><button type="button" id="scan-again" class="b pill">Relancer</button><button type="button" id="scan-close" class="b pill ok2">Fermer</button></div>
+  </dialog>
+  <dialog id="set-dlg">
+    <div class="sethead"><h2>Paramètres</h2><button type="button" id="set-close" class="b pill" aria-label="Fermer">✕</button></div>
+    <nav class="tabs" role="tablist">
+      <button type="button" data-tab="look" aria-pressed="true">Apparence</button>
+      <button type="button" data-tab="apps">Raccourcis</button>
+      <button type="button" data-tab="maj">Mises à jour</button>
+    </nav>
+    <section data-pane="look">
+      <p class="hint">Thème (couleurs et matières)</p>
+      <div id="themes" class="chips three"></div>
+      <p class="hint">Disposition des boutons</p>
+      <div id="layouts" class="chips three"></div>
+      <p class="hint">Effets</p>
+      <label class="switch"><input type="checkbox" id="fx3d" /> Relief 3D (boutons et télécommande en volume)</label>
+      <label class="switch"><input type="checkbox" id="tilt" /> Inclinaison 3D selon le pointeur (PC et tablette)</label>
+    </section>
+    <section data-pane="apps" hidden>
+      <p class="hint">Chaque bouton lance l'application de la TV dont le nom contient le texte indiqué (Samsung, LG, Roku ; infrarouge : Netflix, Prime, Disney+, YouTube).</p>
+      <div id="apps-list"></div>
+      <p class="hint">Ajouter un raccourci</p>
+      <div id="apps-sugg" class="chips"></div>
+      <label>Nom du bouton <input id="a-label" maxlength="14" placeholder="Spotify" /></label>
+      <label>Nom de l'appli sur la TV <input id="a-name" maxlength="40" placeholder="spotify" /></label>
+      <div class="row"><button type="button" id="a-add" class="b pill">Ajouter</button><button type="button" id="a-reset" class="b pill">Par défaut</button></div>
+    </section>
+    <section data-pane="maj" hidden>
+      <p id="maj-ver" class="hint"></p>
+      <label class="switch"><input type="checkbox" id="autoupd" /> Rechercher les mises à jour automatiquement</label>
+      <div class="row"><button type="button" id="upd" class="b pill ok2">Rechercher maintenant</button></div>
+      <p class="hint">La mise à jour est téléchargée depuis la page officielle du projet, son intégrité (SHA-256) est vérifiée avant l'installation, puis l'application se relance toute seule.</p>
+    </section>
   </dialog>
 
   <dialog id="dlg">
@@ -137,7 +175,6 @@
       <h2 id="dlg-title">Ajouter une TV</h2>
       <label>Nom <input id="f-name" required maxlength="40" placeholder="Salon" /></label>
       <button type="button" id="scan" class="b pill">Chercher sur le réseau</button>
-      <div id="found"></div>
       <label>Mode de commande
         <select id="f-mode">
           <option value="wifi" selected>Wi-Fi (TV connectée au réseau)</option>
@@ -180,6 +217,7 @@
       </label>
       <label id="l-mac">Adresse MAC (facultatif, pour rallumer la TV) <input id="f-mac" placeholder="AA:BB:CC:DD:EE:FF" /></label>
       <p class="hint">Allume la TV : une fenêtre de confirmation apparaîtra à l'écran au premier envoi (Samsung, LG). Seules les TV ajoutées ici sont contrôlées.</p>
+      <p class="hint">Pour l'allumer depuis la veille par le réseau : Samsung &gt; Paramètres &gt; Général &gt; Réseau &gt; Paramètres d'expert &gt; « Allumer avec mobile » (en filaire : « IP Remote » ou « Wake on LAN ») ; LG &gt; « Allumer via Wi-Fi » ou « Wake on LAN ».</p>
       <div class="row"><button type="button" id="f-cancel" class="b pill">Annuler</button><button id="f-submit" class="b pill ok2">Ajouter</button></div>
     </form>
   </dialog>

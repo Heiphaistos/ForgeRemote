@@ -40,10 +40,28 @@ pub async fn send(ip: &str, token: Option<&str>, key: Option<&str>) -> Result<Op
             s.send(Message::text(json!({"type":"request","id":"off","uri":"ssap://system/turnOff"}).to_string())).await.map_err(|e| e.to_string())?;
             tokio::time::sleep(Duration::from_millis(200)).await;
         }
+        Some(k) if k.starts_with("TEXT:") => {
+            // Clavier : insère le texte dans le champ actif (service IME de webOS).
+            s.send(Message::text(json!({"type":"request","id":"txt","uri":"ssap://com.webos.service.ime/insertText","payload":{"text":&k[5..],"replace":0}}).to_string())).await.map_err(|e| e.to_string())?;
+            tokio::time::sleep(Duration::from_millis(300)).await;
+        }
+        Some(k) if k.starts_with("APP:") => {
+            // Application par son nom : liste des applis de la TV, puis lancement de celle qui correspond.
+            let nom = &k[4..];
+            s.send(Message::text(json!({"type":"request","id":"apps","uri":"ssap://com.webos.applicationManager/listLaunchPoints"}).to_string())).await.map_err(|e| e.to_string())?;
+            let r = lire(&mut s, "apps", 5).await?;
+            let id = r["payload"]["launchPoints"].as_array().and_then(|a| a.iter().find(|p| p["title"].as_str().is_some_and(|t| t.to_lowercase().contains(nom))))
+                .and_then(|p| p["id"].as_str()).ok_or_else(|| format!("application « {nom} » non installée sur cette TV"))?.to_string();
+            s.send(Message::text(json!({"type":"request","id":"go","uri":"ssap://system.launcher/launch","payload":{"id":id}}).to_string())).await.map_err(|e| e.to_string())?;
+            tokio::time::sleep(Duration::from_millis(300)).await;
+        }
         Some(k) => {
             s.send(Message::text(json!({"type":"request","id":"ptr","uri":"ssap://com.webos.service.networkinput/getPointerInputSocket"}).to_string())).await.map_err(|e| e.to_string())?;
             let r = lire(&mut s, "ptr", 5).await?;
             let path = r["payload"]["socketPath"].as_str().ok_or("socket pointeur absent")?;
+            // L'URL vient de la TV : elle ne doit mener qu'à cette même TV (jamais une autre machine ni Internet).
+            let hote = path.split("://").nth(1).unwrap_or("").split(['/', ':']).next();
+            if !(path.starts_with("ws://") || path.starts_with("wss://")) || hote != Some(ip) { return Err("socket pointeur refusé (hôte inattendu)".into()); }
             let mut b = ws(path, 4).await?;
             b.send(Message::text(format!("type:button\nname:{k}\n\n"))).await.map_err(|e| e.to_string())?;
             tokio::time::sleep(Duration::from_millis(120)).await;

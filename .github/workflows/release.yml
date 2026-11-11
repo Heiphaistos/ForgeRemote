@@ -1,6 +1,8 @@
 name: release
 # Lancement manuel seulement (Actions > release > Run workflow, branche = tag vX.Y.Z).
-# Les releases officielles sont publiées depuis le PC (APK signé avec la clé de D:\MDP).
+# Les releases officielles (Windows + APK signé avec la clé de D:\MDP) sont publiées depuis le PC ;
+# les paquets Linux (deb, rpm, AppImage) sont construits sur le PC (WSL) ; ce workflow AJOUTE à cette release le macOS (dmg universel, non signé),
+# puis complète SHA256SUMS sans toucher aux fichiers déjà publiés.
 on:
   workflow_dispatch:
 
@@ -13,9 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: windows-latest, name: windows, cmd: "npm run tauri build -- --no-bundle; cp src-tauri/target/release/forgeremote.exe src-tauri/target/release/ForgeRemote_portable.exe; npm run tauri build -- --bundles nsis", glob: "src-tauri/target/release/ForgeRemote_portable.exe src-tauri/target/release/bundle/nsis/*-setup.exe" }
-          - { os: ubuntu-22.04, name: linux, cmd: "npm run tauri build -- --bundles deb,rpm,appimage", glob: "src-tauri/target/release/bundle/*/*.{deb,rpm,AppImage}" }
-          - { os: ubuntu-22.04, name: android, cmd: "npm run tauri android build -- --apk --debug --target aarch64 armv7", glob: "src-tauri/gen/android/app/build/outputs/apk/**/*.apk" }
+          - { os: macos-latest, name: macos, cmd: "rustup target add x86_64-apple-darwin aarch64-apple-darwin && npm run tauri build -- --target universal-apple-darwin --bundles dmg", glob: "src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg" }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
@@ -23,13 +23,10 @@ jobs:
       - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with: { node-version: 22 }
       - name: Dépendances Linux
-        if: matrix.name != 'windows'
+        if: matrix.name == 'linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf rpm
-      - name: Cibles Rust Android
-        if: matrix.name == 'android'
-        run: rustup target add aarch64-linux-android armv7-linux-androideabi
       - run: npm ci
       - name: Tests Rust et IR
         if: matrix.name == 'linux'
@@ -37,8 +34,6 @@ jobs:
           (cd src-tauri && cargo test)
           node src/ir.test.mjs
       - run: ${{ matrix.cmd }}
-        env:
-          NDK_HOME: ${{ env.ANDROID_NDK_LATEST_HOME }}
       - name: Rassembler
         shell: bash
         run: |
@@ -57,10 +52,15 @@ jobs:
     steps:
       - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with: { path: dist, merge-multiple: true }
-      - name: SHA256SUMS + release
+      - name: Ajouter à la release et compléter SHA256SUMS
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cd dist
-          sha256sum * > SHA256SUMS
-          gh release create "$GITHUB_REF_NAME" * --repo "$GITHUB_REPOSITORY" --title "ForgeRemote $GITHUB_REF_NAME" --generate-notes
+          set -e
+          mkdir old && cd old
+          gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --pattern SHA256SUMS
+          cd ../dist
+          sha256sum * > ../nouveau.sums
+          cat ../old/SHA256SUMS ../nouveau.sums | sort -u -k2 > SHA256SUMS.new
+          mv SHA256SUMS.new SHA256SUMS
+          gh release upload "$GITHUB_REF_NAME" * --repo "$GITHUB_REPOSITORY" --clobber

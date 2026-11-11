@@ -51,7 +51,11 @@ class BtBridge(private val act: Activity) {
     put("power", 2 to 0x30); put("home", 2 to 0x223); put("back", 2 to 0x224); put("menu", 2 to 0x40)
     put("vol_up", 2 to 0xE9); put("vol_down", 2 to 0xEA); put("mute", 2 to 0xE2)
     put("ch_up", 2 to 0x9C); put("ch_down", 2 to 0x9D); put("info", 2 to 0x60); put("guide", 2 to 0x8D)
-    put("play", 2 to 0xB0); put("pause", 2 to 0xB1); put("stop", 2 to 0xB7); put("rew", 2 to 0xB4); put("ff", 2 to 0xB3)
+    put("search", 2 to 0x221)
+    // Couleurs, sous-titres, format d'image, 3D, dernière chaîne, TV, favoris, enregistrement : usages « consommateur » standard
+    put("red", 2 to 0x69); put("green", 2 to 0x6A); put("blue", 2 to 0x6B); put("yellow", 2 to 0x6C)
+    put("subtitle", 2 to 0x61); put("aspect", 2 to 0x6D); put("mode_3d", 2 to 0x6E); put("prev_ch", 2 to 0x83)
+    put("tv", 2 to 0x89); put("fav", 2 to 0x22A); put("rec", 2 to 0xB2); put("apps", 2 to 0x223); put("play", 2 to 0xB0); put("pause", 2 to 0xB1); put("stop", 2 to 0xB7); put("rew", 2 to 0xB4); put("ff", 2 to 0xB3)
   }
 
   private val perms get() =
@@ -126,5 +130,44 @@ class BtBridge(private val act: Activity) {
       h.sendReport(d, 2, byteArrayOf(0, 0))
     }
     return true
+  }
+
+  /** Tape un texte dans le champ actif de la TV (clavier HID, touches US ; accents retirés). Asynchrone : true = envoi lancé. */
+  @JavascriptInterface fun sendText(text: String): Boolean {
+    val h = hid ?: return false
+    val d = host ?: return false
+    val plat = java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "")
+    pool.execute {
+      for (c in plat.take(200)) {
+        val (maj, usage) = hidChar(c) ?: continue
+        h.sendReport(d, 1, ByteArray(8).also { it[0] = if (maj) 0x02 else 0; it[2] = usage.toByte() })
+        Thread.sleep(25)
+        h.sendReport(d, 1, ByteArray(8))
+        Thread.sleep(25)
+      }
+    }
+    return true
+  }
+
+  /** (majuscule ?, usage clavier page 0x07) d'un caractère ASCII usuel, ou null. */
+  private fun hidChar(c: Char): Pair<Boolean, Int>? = when (c) {
+    in 'a'..'z' -> false to (0x04 + (c - 'a'))
+    in 'A'..'Z' -> true to (0x04 + (c - 'A'))
+    in '1'..'9' -> false to (0x1E + (c - '1'))
+    '0' -> false to 0x27
+    ' ' -> false to 0x2C
+    '\n' -> false to 0x28
+    '.' -> false to 0x37
+    ',' -> false to 0x36
+    '-' -> false to 0x2D
+    '_' -> true to 0x2D
+    '/' -> false to 0x38
+    '?' -> true to 0x38
+    ';' -> false to 0x33
+    ':' -> true to 0x33
+    '\'' -> false to 0x34
+    '@' -> true to 0x1F
+    '!' -> true to 0x1E
+    else -> null
   }
 }

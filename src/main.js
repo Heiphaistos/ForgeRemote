@@ -1,6 +1,6 @@
-import { irMarques, irPowerWifi, irSend } from "./ir.js";
+import { irDispo, irKeyFor, irMarques, irPowerWifi, irSend } from "./ir.js";
 import { initLook } from "./look.js";
-import { btAdresse, btAppareils, btSend, btVisible } from "./bt.js";
+import { BT_KEYS, btAdresse, btAppareils, btSend, btText, btVisible } from "./bt.js";
 
 const invoke = window.__TAURI__.core.invoke;
 const $ = (s) => document.querySelector(s);
@@ -27,7 +27,7 @@ function buildGroup() {
   $("#group").replaceChildren(...tvs.map((t) => {
     const l = document.createElement("label"), c = document.createElement("input");
     c.type = "checkbox"; c.checked = ids.includes(t.id);
-    c.onchange = () => store("grp", JSON.stringify([...document.querySelectorAll("#group input")].flatMap((x, i) => (x.checked ? [tvs[i].id] : []))));
+    c.onchange = () => { store("grp", JSON.stringify([...document.querySelectorAll("#group input")].flatMap((x, i) => (x.checked ? [tvs[i].id] : [])))); majTouches(); };
     l.append(c, ` ${t.name}`);
     return l;
   }));
@@ -42,6 +42,25 @@ async function refresh(keep) {
   else if (!cur().paired && NEEDS_PAIR.includes(cur().brand)) say("TV non appairée : appuie sur une touche et accepte sur la TV");
   else say("");
   store("tv", sel.value);
+  majTouches();
+}
+
+// Ce que chaque profil sait faire : Wi-Fi = table de la marque (Rust), IR = base de codes, Bluetooth = table HID.
+const peutWifi = (tv, k) => (k.startsWith("app:") ? tv.apps : !!tv.keys?.includes(k));
+const peutIrSecours = (tv, k) => irDispo() && irKeyFor(tv.brand, k) !== null; // TV Wi-Fi sans cette touche : l'infrarouge la fait
+function support(tv, k) {
+  if (tv.brand === "bt") return BT_KEYS.includes(k);
+  if (tv.ir) return irKeyFor(tv.brand, k) !== null;
+  return peutWifi(tv, k) || peutIrSecours(tv, k);
+}
+/** Grise les touches que la/les TV ciblée(s) ne gèrent pas (au lieu d'une erreur au clic). */
+function majTouches() {
+  const cs = cibles();
+  document.querySelectorAll("[data-k]").forEach((b) => {
+    const ok = !cs.length || cs.some((tv) => support(tv, b.dataset.k));
+    b.disabled = !ok; b.classList.toggle("indispo", !ok);
+    if (!ok) b.title = "Non disponible pour ce profil (autre mode ou autre TV : voir « Dupliquer »)"; else if (b.title.startsWith("Non dispo")) b.removeAttribute("title");
+  });
 }
 
 async function envoyer(tv, k) {
@@ -51,6 +70,7 @@ async function envoyer(tv, k) {
     if (!irPowerWifi(tv.brand)) throw new Error("Infrarouge indisponible ici (pas d'émetteur ou marque sans code IR) : passe ce profil en Wi-Fi ou Auto");
     irSend(`ir_${tv.brand}`, k);
   } else if (k === "power" && tv.power !== "wifi" && irPowerWifi(tv.brand)) irSend(`ir_${tv.brand}`, k);
+  else if (!peutWifi(tv, k) && peutIrSecours(tv, k)) irSend(`ir_${tv.brand}`, k);
   else await invoke("send_key", { id: tv.id, key: k });
 }
 
@@ -64,7 +84,61 @@ async function press(k) {
   if (cs.some((t) => !t.paired && NEEDS_PAIR.includes(t.brand))) refresh(sel.value);
 }
 
-document.querySelectorAll("[data-k]").forEach((b) => b.addEventListener("click", () => press(b.dataset.k)));
+// Maintenir volume / chaînes / flèches répète la touche (comme une vraie télécommande) ; clavier = un appui par Entrée.
+const REPEAT = new Set(["vol_up", "vol_down", "ch_up", "ch_down", "up", "down", "left", "right"]);
+document.querySelectorAll("[data-k]").forEach((b) => {
+  const k = b.dataset.k;
+  if (!REPEAT.has(k)) return b.addEventListener("click", () => press(k));
+  let t = null, busy = false, tenu = false;
+  const tir = async () => { if (busy) return; busy = true; try { await press(k); } finally { busy = false; } };
+  const stop = () => { clearTimeout(t); clearInterval(t); t = null; };
+  b.addEventListener("pointerdown", (e) => { if (e.button) return; tenu = true; tir(); t = setTimeout(() => { t = setInterval(tir, 160); }, 450); });
+  ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => b.addEventListener(ev, stop));
+  b.addEventListener("click", (e) => { if (e.detail === 0 && !tenu) tir(); tenu = false; }); // détail 0 = activation au clavier
+});
+
+// --- Saisie de texte : envoyée au champ de texte actif de la TV (Samsung, LG, Roku) ---
+async function envoyerTexte() {
+  const t = $("#txt").value; if (!t) return;
+  const cs = cibles(); if (!cs.length) return say("Aucune TV sélectionnée", true);
+  const res = await Promise.allSettled(cs.map((tv) => (tv.brand === "bt" ? btText(tv.id, t) : tv.ir ? Promise.reject(new Error("TV infrarouge : pas de saisie de texte (utilise Wi-Fi ou Bluetooth)")) : invoke("send_text", { id: tv.id, text: t }))));
+  const ko = res.flatMap((r, i) => (r.status === "rejected" ? [`${cs[i].name} : ${r.reason?.message ?? r.reason}`] : []));
+  say(ko.length ? ko.join(" — ") : "Texte envoyé (sélectionne d'abord un champ de texte sur la TV)", ko.length > 0);
+  if (!ko.length) $("#txt").value = "";
+}
+$("#txt-go").onclick = envoyerTexte;
+$("#txt").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); envoyerTexte(); } e.stopPropagation(); });
+
+// --- Raccourcis d'applications personnalisables (Plex, Netflix...) : stockés sur l'appareil ---
+const APPS_DEFAUT = [{ l: "Plex", a: "plex" }, { l: "Netflix", a: "netflix" }, { l: "YouTube", a: "youtube" }, { l: "Prime", a: "prime video" }, { l: "Disney+", a: "disney" }];
+const SUGGESTIONS = [["Apple TV", "apple tv"], ["Spotify", "spotify"], ["Twitch", "twitch"], ["Canal+", "canal"], ["MyCanal", "mycanal"], ["France TV", "france"], ["TF1+", "tf1"], ["6play", "6play"], ["Arte", "arte"],
+  ["Crunchyroll", "crunchyroll"], ["Kodi", "kodi"], ["Jellyfin", "jellyfin"], ["Deezer", "deezer"], ["DAZN", "dazn"], ["Paramount+", "paramount"], ["Max", "max"], ["Molotov", "molotov"], ["VLC", "vlc"]];
+let apps = (() => { try { const v = JSON.parse(load("apps") ?? "null"); return Array.isArray(v) ? v : APPS_DEFAUT; } catch { return APPS_DEFAUT; } })();
+const saveApps = () => { store("apps", JSON.stringify(apps)); drawApps(); };
+function drawApps() {
+  $("#apps").replaceChildren(...apps.map((x) => {
+    const b = document.createElement("button");
+    b.className = "b pill" + (x.a === "plex" ? " plex" : ""); b.textContent = x.l; b.title = `Lancer ${x.l} sur la TV`;
+    b.dataset.k = `app:${x.a}`; b.onclick = () => press(b.dataset.k);
+    return b;
+  }));
+  $("#apps-list").replaceChildren(...apps.map((x, i) => {
+    const r = document.createElement("div"); r.className = "row";
+    const t = document.createElement("span"); t.textContent = `${x.l}  →  « ${x.a} »`;
+    const d = document.createElement("button"); d.className = "b pill"; d.textContent = "Retirer"; d.onclick = () => { apps.splice(i, 1); saveApps(); };
+    r.append(t, d); return r;
+  }));
+}
+function ajouterApp(l, a) {
+  l = l.trim(); a = a.trim().toLowerCase();
+  if (!l || !a) return say("Indique le nom du bouton et celui de l'appli", true);
+  if (apps.some((x) => x.a === a)) return say("Ce raccourci existe déjà", true);
+  apps.push({ l: l.slice(0, 14), a: a.slice(0, 40) }); saveApps();
+}
+$("#apps-sugg").replaceChildren(...SUGGESTIONS.map(([l, a]) => { const c = document.createElement("button"); c.type = "button"; c.className = "chip"; c.textContent = l; c.onclick = () => ajouterApp(l, a); return c; }));
+$("#a-add").onclick = () => { ajouterApp($("#a-label").value, $("#a-name").value); $("#a-label").value = ""; $("#a-name").value = ""; };
+$("#a-reset").onclick = () => { apps = APPS_DEFAUT; saveApps(); };
+drawApps();
 
 // Clavier (PC) : flèches, Entrée, Échap, chiffres, +/-, M, Page haut/bas, H.
 const MAP = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", Enter: "ok", Escape: "back", Backspace: "back",
@@ -108,7 +182,7 @@ brandSel.onchange = formUi;
 
 function openForm(tv, prefill) {
   editing = tv?.id ?? null;
-  $("#form").reset(); $("#found").replaceChildren(); $("#detect-res").textContent = "";
+  $("#form").reset(); $("#detect-res").textContent = "";
   modeSel.value = prefill?.mode ?? (tv ? modeDe(tv.brand) : "wifi");
   filtrerMarques(modeSel.value, tv?.brand);
   $("#f-power").value = tv?.power ?? "auto";
@@ -148,20 +222,32 @@ $("#detect").onclick = async () => {
   } catch (e) { out.textContent = String(e); }
 };
 
-$("#scan").onclick = async () => {
-  const box = $("#found"); box.replaceChildren(); $("#scan").disabled = true; say("Recherche sur le réseau (jusqu'à 8 s)…");
+// --- Recherche réseau : fenêtre au premier plan avec l'avancement et le résultat ---
+const scanDlg = $("#scan-dlg");
+async function lancerScan() {
+  const st = $("#scan-st"), list = $("#scan-list");
+  list.replaceChildren(); $("#scan-again").disabled = true;
+  st.textContent = "Recherche en cours sur ton réseau local (environ 8 secondes)…";
   try {
     const r = await invoke("scan_tvs");
-    box.replaceChildren(...r.map((d) => {
+    list.replaceChildren(...r.map((d) => {
       const c = document.createElement("button");
-      c.type = "button"; c.className = "chip"; c.textContent = `${d.name} · ${d.ip}`;
-      c.onclick = () => { brandSel.value = d.brand; $("#f-ip").value = d.ip; if (!$("#f-name").value) $("#f-name").value = String(d.name).slice(0, 40); formUi(); };
+      c.type = "button"; c.className = "chip"; c.textContent = `${d.name} · ${d.ip} (${d.brand})`;
+      c.onclick = () => {
+        modeSel.value = "wifi"; filtrerMarques("wifi", d.brand); $("#f-ip").value = d.ip;
+        if (!$("#f-name").value) $("#f-name").value = String(d.name).slice(0, 40);
+        formUi(); scanDlg.close();
+      };
       return c;
     }));
-    say(r.length ? "" : `Aucune TV trouvée. ${AIDE_RESEAU} Sinon saisis l'IP et clique « Détecter ».`);
-  } catch (e) { say(String(e), true); }
-  $("#scan").disabled = false;
-};
+    st.textContent = r.length ? `${r.length} TV trouvée(s) : clique sur la tienne.`
+      : `Aucune TV trouvée. Une TV éteinte ou en veille ne répond pas au réseau : allume-la puis relance. ${AIDE_RESEAU} Sinon saisis l'IP et clique « Détecter ».`;
+  } catch (e) { st.textContent = String(e.message ?? e); }
+  $("#scan-again").disabled = false;
+}
+$("#scan").onclick = () => { scanDlg.showModal(); lancerScan(); };
+$("#scan-again").onclick = lancerScan;
+$("#scan-close").onclick = () => scanDlg.close();
 
 $("#form").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -189,7 +275,7 @@ $("#del").onclick = async () => {
 };
 sel.onchange = () => refresh(sel.value);
 $("#grp").onclick = () => {
-  grpOn = !grpOn; $("#grp").setAttribute("aria-pressed", String(grpOn)); $("#group").hidden = !grpOn;
+  grpOn = !grpOn; $("#grp").setAttribute("aria-pressed", String(grpOn)); $("#group").hidden = !grpOn; majTouches();
   say(grpOn ? "Mode groupe : les touches vont à toutes les TV cochées" : "");
 };
 
@@ -199,7 +285,7 @@ $("#grp").onclick = () => {
 let majEnCours = null;
 function proposer(u) {
   majEnCours = u;
-  $("#updtxt").textContent = `Version ${u.version} disponible`;
+  $("#updtxt").textContent = `ForgeRemote ${u.version} est disponible (installée : ${$("#ver").textContent.replace(/^v/, "")})`;
   $("#updbar").hidden = false;
   $("#updgo").disabled = false;
 }
@@ -209,8 +295,8 @@ $("#updgo").onclick = async () => {
   $("#updgo").disabled = true; say("Téléchargement et vérification de l'intégrité…");
   try {
     if (window.ForgeUpd) await installerAndroid(u);
-    else if (u.kind === "setup" || u.kind === "portable") { await invoke("install_update", { url: u.url, name: u.name, sums: u.sums }); say("Installation…"); }
-    else throw new Error(`Mise à jour automatique indisponible ici : ${u.page}`);
+    else if (u.kind === "setup" || u.kind === "portable" || u.kind === "appimage") { await invoke("install_update", { url: u.url, name: u.name, sums: u.sums }); say("Installation…"); }
+    else { await invoke("open_release", { url: u.page }); say("Page de la release ouverte : télécharge le paquet pour ton système."); }
   } catch (e) { say(String(e.message ?? e), true); $("#updgo").disabled = false; }
 };
 async function installerAndroid(u) {

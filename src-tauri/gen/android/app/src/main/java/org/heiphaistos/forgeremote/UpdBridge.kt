@@ -30,6 +30,13 @@ class UpdBridge(private val a: Activity) {
   private fun get(u: String): HttpURLConnection =
     (URL(u).openConnection() as HttpURLConnection).apply { connectTimeout = 15000; readTimeout = 60000; setRequestProperty("User-Agent", "forgeremote-updater") }
 
+  /** https, github.com, ce dépôt, chemin normalisé (« ../ » et « %2e » ne peuvent pas en sortir). */
+  private fun sure(u: String): Boolean = try {
+    val p = java.net.URI(u).normalize()
+    p.scheme == "https" && p.host == "github.com" && p.port == -1 && p.userInfo == null &&
+      (p.rawPath ?: "").startsWith("/Heiphaistos/ForgeRemote/releases/") && !(p.rawPath ?: "").lowercase().contains("%2e")
+  } catch (e: Exception) { false }
+
   private fun hex(b: ByteArray): String = b.joinToString("") { Integer.toHexString((it.toInt() and 0xff) or 0x100).substring(1) }
 
   @JavascriptInterface
@@ -38,8 +45,7 @@ class UpdBridge(private val a: Activity) {
     st = "dl"
     Thread {
       try {
-        val base = "https://github.com/Heiphaistos/ForgeRemote/releases/download/"
-        require(url.startsWith(base) && sums.startsWith(base) && !name.contains('/') && !name.contains('\\')) { "URL non autorisée" }
+        require(sure(url) && sure(sums) && Regex("[A-Za-z0-9._-]{1,100}").matches(name) && !name.contains("..")) { "URL non autorisée" }
         val txt = get(sums).inputStream.bufferedReader().readText()
         val want = txt.lines().firstNotNullOfOrNull { l ->
           val p = l.trim().split(Regex("\\s+"), 2)

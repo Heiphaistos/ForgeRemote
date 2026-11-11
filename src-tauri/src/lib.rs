@@ -32,7 +32,7 @@ fn brand_idx(b: &str) -> Result<usize, String> {
 
 /// Jamais le jeton ni la clé vers l'interface.
 fn vue(t: &Tv) -> Value {
-    json!({"id":t.id,"name":t.name,"brand":t.brand,"ip":t.ip,"paired":t.token.is_some(),"ir":is_local(&t.brand),"wol":t.mac.is_some(),"mac":t.mac,"power":t.power})
+    json!({"id":t.id,"name":t.name,"brand":t.brand,"ip":t.ip,"paired":t.token.is_some(),"ir":is_local(&t.brand),"wol":t.mac.is_some(),"mac":t.mac,"power":t.power,"keys":brand_idx(&t.brand).map(keys::supported).unwrap_or_default(),"apps":brand_idx(&t.brand).is_ok_and(|b| matches!(b, 0 | 1 | 3))})
 }
 
 #[cfg(test)]
@@ -101,9 +101,9 @@ fn remove_tv(st: St, id: String) -> Result<(), String> {
     s.save()
 }
 
-/// Cherche la MAC de la TV dans la table ARP et la mémorise dans son profil.
-async fn apprendre_mac(st: &St<'_>, id: &str, ip: &str) -> Option<String> {
-    let m = wol::lookup_mac(ip).await?;
+/// Cherche la MAC de la TV (table ARP, sinon API de la TV allumée) et la mémorise dans son profil.
+async fn apprendre_mac(st: &St<'_>, id: &str, brand: &str, ip: &str) -> Option<String> {
+    let m = match wol::lookup_mac(ip).await { Some(m) => m, None => detect::mac_via_api(brand, ip).await? };
     let mut s = st.lock().unwrap();
     if let Some(t) = s.tvs.iter_mut().find(|t| t.id == id && t.mac.is_none()) { t.mac = Some(m.clone()); let _ = s.save(); }
     Some(m)
@@ -114,7 +114,7 @@ async fn apprendre_mac(st: &St<'_>, id: &str, ip: &str) -> Option<String> {
 async fn learn_mac(st: St<'_>, id: String) -> Result<bool, String> {
     let tv = st.lock().unwrap().get(&id)?;
     if is_local(&tv.brand) || tv.mac.is_some() { return Ok(tv.mac.is_some()); }
-    Ok(apprendre_mac(&st, &id, &tv.ip).await.is_some())
+    Ok(apprendre_mac(&st, &id, &tv.brand, &tv.ip).await.is_some())
 }
 
 async fn envoyer(st: &St<'_>, id: &str, key: Option<&str>) -> Result<(), String> {
@@ -122,9 +122,10 @@ async fn envoyer(st: &St<'_>, id: &str, key: Option<&str>) -> Result<(), String>
     if is_local(&tv.brand) { return Err("TV infrarouge ou Bluetooth : envoi depuis le téléphone uniquement".into()); }
     let b = brand_idx(&tv.brand)?;
     let code = key.map(|k| keys::code(k, b)).transpose()?;
+    let code = code.as_deref();
     let tok = tv.token.as_deref();
     // MAC apprise automatiquement tant que la TV est allumée : permet de la réveiller plus tard sans rien saisir.
-    let mac = match &tv.mac { Some(m) => Some(m.clone()), None => apprendre_mac(st, id, &tv.ip).await };
+    let mac = match &tv.mac { Some(m) => Some(m.clone()), None => apprendre_mac(st, id, &tv.brand, &tv.ip).await };
     // Marche/arrêt avec MAC connue : on réveille d'abord (une TV en veille n'écoute plus le réseau).
     let reveil = key == Some("power") && match &mac { Some(m) => wol::wake(m, &tv.ip).await.is_ok(), None => false };
     let res: Result<Option<String>, String> = match (b, code) {
@@ -147,6 +148,21 @@ async fn envoyer(st: &St<'_>, id: &str, key: Option<&str>) -> Result<(), String>
         s.save()?;
     }
     Ok(())
+}
+
+/// Saisie de texte dans le champ actif de la TV (clavier du téléphone/PC) : Samsung, LG, Roku.
+#[tauri::command]
+async fn send_text(st: St<'_>, id: String, text: String) -> Result<(), String> {
+    if text.is_empty() || text.chars().count() > 200 || text.chars().any(|c| c.is_control()) { return Err("texte invalide (1 à 200 caractères)".into()); }
+    let tv = st.lock().unwrap().get(&id)?; // verrou relâché avant tout await
+    let tok = tv.token.as_deref();
+    let cle = format!("TEXT:{text}");
+    match tv.brand.as_str() {
+        "samsung" => samsung::send(&tv.ip, tok, Some(&cle)).await.map(|_| ()),
+        "lg" => lg::send(&tv.ip, tok, Some(&cle)).await.map(|_| ()),
+        "roku" => http::roku_text(&tv.ip, &text).await,
+        _ => Err("saisie de texte non gérée par cette marque".into()),
+    }
 }
 
 #[tauri::command]
@@ -177,6 +193,19 @@ async fn install_update(app: AppHandle, url: String, name: String, sums: String)
     Ok(())
 }
 
+/// Ouvre la page de la release dans le navigateur (macOS, deb, rpm : pas d'installation automatique).
+#[tauri::command]
+fn open_release(url: String) -> Result<(), String> {
+    if !update::url_sure(&url) { return Err("adresse non autorisée".into()); }
+    #[cfg(windows)]
+    let r = std::process::Command::new("explorer.exe").arg(&url).spawn();
+    #[cfg(target_os = "macos")]
+    let r = std::process::Command::new("open").arg(&url).spawn();
+    #[cfg(not(any(windows, target_os = "macos")))]
+    let r = std::process::Command::new("xdg-open").arg(&url).spawn();
+    r.map(|_| ()).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -186,7 +215,7 @@ pub fn run() {
             app.manage(Mutex::new(Store::load(dir)));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![list_tvs, add_tv, update_tv, detect_tv, remove_tv, send_key, learn_mac, pair, scan_tvs, check_update, install_update])
+        .invoke_handler(tauri::generate_handler![list_tvs, add_tv, update_tv, detect_tv, remove_tv, send_key, send_text, learn_mac, pair, scan_tvs, check_update, install_update, open_release])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de ForgeRemote");
 }
