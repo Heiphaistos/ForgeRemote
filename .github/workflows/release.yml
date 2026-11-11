@@ -5,6 +5,10 @@ name: release
 # puis complète SHA256SUMS sans toucher aux fichiers déjà publiés.
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag de la release à compléter (ex. v0.9.0)"
+        required: true
 
 permissions:
   contents: read
@@ -20,6 +24,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with: { ref: \"${{ inputs.tag }}\" }
       - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with: { node-version: 22 }
       - name: Dépendances Linux
@@ -37,7 +42,7 @@ jobs:
       - name: Rassembler
         shell: bash
         run: |
-          shopt -s globstar extglob nullglob
+          shopt -s nullglob
           mkdir out
           for f in ${{ matrix.glob }}; do cp "$f" out/; done
           ls out
@@ -55,12 +60,13 @@ jobs:
       - name: Ajouter à la release et compléter SHA256SUMS
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag }}
         run: |
           set -e
           mkdir old && cd old
-          gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --pattern SHA256SUMS
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern SHA256SUMS
           cd ../dist
           sha256sum * > ../nouveau.sums
           cat ../old/SHA256SUMS ../nouveau.sums | sort -u -k2 > SHA256SUMS.new
           mv SHA256SUMS.new SHA256SUMS
-          gh release upload "$GITHUB_REF_NAME" * --repo "$GITHUB_REPOSITORY" --clobber
+          gh release upload "$TAG" * --repo "$GITHUB_REPOSITORY" --clobber
