@@ -133,7 +133,7 @@
       </div>
     </div>
     <p id="msg" role="status"></p>
-    <footer class="foot"><span id="ver">v0.9.3</span></footer>
+    <footer class="foot"><span id="ver">v0.9.4</span></footer>
   </main>
 
   <dialog id="scan-dlg">
@@ -157,11 +157,16 @@
       <div id="layouts" class="chips three"></div>
       <p class="hint">Effets</p>
       <label class="switch"><input type="checkbox" id="fx3d" /> Relief 3D (boutons et télécommande en volume)</label>
+      <label class="switch" id="l-volkeys" hidden><input type="checkbox" id="volkeys" /> Boutons de volume du téléphone = volume de la TV</label>
       <label class="switch"><input type="checkbox" id="tilt" /> Inclinaison 3D selon le pointeur (PC et tablette)</label>
     </section>
     <section data-pane="apps" hidden>
       <p class="hint">Chaque bouton lance l'application de la TV dont le nom contient le texte indiqué (Samsung, LG, Roku ; infrarouge : Netflix, Prime, Disney+, YouTube).</p>
       <div id="apps-list"></div>
+      <p class="hint">Applis de ta TV (Samsung, LG, Roku ; TV allumée)</p>
+      <div class="row"><button type="button" id="a-read" class="b pill">Lire les applis de la TV</button></div>
+      <p id="a-read-st" class="hint"></p>
+      <div id="apps-tv" class="chips"></div>
       <p class="hint">Ajouter un raccourci</p>
       <div id="apps-sugg" class="chips"></div>
       <label>Nom du bouton <input id="a-label" maxlength="14" placeholder="Spotify" /></label>

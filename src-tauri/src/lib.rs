@@ -163,6 +163,23 @@ async fn envoyer(st: &St<'_>, id: &str, key: Option<&str>) -> Result<(), String>
     Ok(())
 }
 
+/// Applications installées sur la TV (Samsung, LG, Roku), pour créer des raccourcis sans deviner leur nom.
+#[tauri::command]
+async fn list_apps(st: St<'_>, id: String) -> Result<Vec<String>, String> {
+    let tv = st.lock().unwrap().get(&id)?; // verrou relâché avant tout await
+    wifi_idx(&tv).map_err(|_| "profil sans IP : renseigne l'IP de la TV".to_string())?;
+    let tok = tv.token.as_deref();
+    let mut v = match base(&tv.brand) {
+        "samsung" => samsung::apps(&tv.ip, tok).await?,
+        "lg" => lg::apps(&tv.ip, tok).await?,
+        "roku" => http::roku_apps(&tv.ip).await?,
+        _ => return Err("liste d'applis non gérée par cette marque".into()),
+    };
+    v.sort_by_key(|n| n.to_lowercase()); v.dedup();
+    v.truncate(200);
+    Ok(v)
+}
+
 /// Saisie de texte dans le champ actif de la TV (clavier du téléphone/PC) : Samsung, LG, Roku.
 #[tauri::command]
 async fn send_text(st: St<'_>, id: String, text: String) -> Result<(), String> {
@@ -228,7 +245,7 @@ pub fn run() {
             app.manage(Mutex::new(Store::load(dir)));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![list_tvs, add_tv, update_tv, detect_tv, remove_tv, send_key, send_text, learn_mac, pair, scan_tvs, check_update, install_update, open_release])
+        .invoke_handler(tauri::generate_handler![list_tvs, add_tv, update_tv, detect_tv, remove_tv, send_key, send_text, list_apps, learn_mac, pair, scan_tvs, check_update, install_update, open_release])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de ForgeRemote");
 }

@@ -6,6 +6,7 @@ import android.hardware.ConsumerIrManager
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
+import android.view.KeyEvent
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
@@ -25,6 +26,19 @@ class IrBridge(private val ir: ConsumerIrManager?) {
 
 class MainActivity : TauriActivity() {
   private var upd: UpdBridge? = null
+  private var web: WebView? = null
+
+  @Volatile private var volOn = false
+
+  /** Touches de volume du téléphone = volume de la TV (option des Paramètres, signalée par ForgeVol.set). */
+  override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+    if (volOn && (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN)) {
+      val sens = if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) "up" else "down"
+      web?.evaluateJavascript("window.__vol&&window.__vol('" + sens + "')", null)
+      return true
+    }
+    return super.onKeyDown(keyCode, event)
+  }
 
   override fun onResume() {
     super.onResume()
@@ -47,6 +61,8 @@ class MainActivity : TauriActivity() {
 
   override fun onWebViewCreate(webView: WebView) {
     val ir = getSystemService(Context.CONSUMER_IR_SERVICE) as? ConsumerIrManager
+    web = webView
+    webView.addJavascriptInterface(object { @JavascriptInterface fun set(on: Boolean) { volOn = on } }, "ForgeVol")
     webView.addJavascriptInterface(IrBridge(ir), "ForgeIR")
     webView.addJavascriptInterface(UpdBridge(this).also { upd = it }, "ForgeUpd")
     // Télécommande Bluetooth HID : Android 9+ seulement.

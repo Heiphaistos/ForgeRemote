@@ -71,3 +71,16 @@ pub async fn send(ip: &str, token: Option<&str>, key: Option<&str>) -> Result<Op
     let _ = s.close(None).await;
     Ok(nouveau)
 }
+
+/// Noms des applications de la TV (listLaunchPoints).
+pub async fn apps(ip: &str, token: Option<&str>) -> Result<Vec<String>, String> {
+    let mut s = match ws(&format!("wss://{ip}:3001"), 4).await { Ok(s) => s, Err(_) => ws(&format!("ws://{ip}:3000"), 4).await? };
+    let mut p = json!({"forcePairing":false,"pairingType":"PROMPT","manifest":{"manifestVersion":1,"permissions":PERMS}});
+    if let Some(t) = token { p["client-key"] = json!(t); }
+    s.send(Message::text(json!({"type":"register","id":"reg","payload":p}).to_string())).await.map_err(|e| e.to_string())?;
+    lire(&mut s, "reg", if token.is_some() { 5 } else { 30 }).await?;
+    s.send(Message::text(json!({"type":"request","id":"apps","uri":"ssap://com.webos.applicationManager/listLaunchPoints"}).to_string())).await.map_err(|e| e.to_string())?;
+    let r = lire(&mut s, "apps", 5).await?;
+    let _ = s.close(None).await;
+    Ok(r["payload"]["launchPoints"].as_array().map(|a| a.iter().filter_map(|p| p["title"].as_str()).map(|n| n.chars().take(40).collect()).collect()).unwrap_or_default())
+}

@@ -51,6 +51,11 @@ avant installation silencieuse (Windows). Android/Linux : lien vers la release.
 - Noms de TV décodés (`65&quot;` -> `65"`), MAC lue dans la table ARP puis l'API de la TV.
 - Correctif : le bandeau « Installer » ne s'affiche plus en permanence.
 
+## Nouveautés 0.9.4
+
+- Raccourcis d'applis : « Lire les applis de la TV » (Samsung, LG, Roku) liste les applis réellement installées, un clic crée le bouton.
+- Android : option « Boutons de volume du téléphone = volume de la TV » (Paramètres > Apparence).
+
 ## Nouveautés 0.9.3
 
 - Correctif : dans la fenêtre Windows (barre de défilement comprise), les cinq boutons Modifier/Ajouter/Dupliquer/Retirer/Groupe tiennent sur une seule ligne (marges latérales réduites).

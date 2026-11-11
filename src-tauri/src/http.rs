@@ -29,6 +29,16 @@ fn roku_app(xml: &str, nom: &str) -> Option<String> {
     })
 }
 
+/// Noms des chaînes installées sur la Roku (GET /query/apps).
+pub async fn roku_apps(ip: &str) -> Result<Vec<String>, String> {
+    let xml = client()?.get(format!("http://{ip}:8060/query/apps")).send().await.map_err(|e| format!("TV injoignable : {e}"))?.text().await.map_err(|e| e.to_string())?;
+    Ok(roku_noms(&xml))
+}
+
+fn roku_noms(xml: &str) -> Vec<String> {
+    xml.split("<app ").skip(1).filter_map(|c| c.split_once('>')?.1.split("</app>").next().map(|t| t.chars().take(40).collect())).collect()
+}
+
 /// Roku : POST http://ip:8060/keypress/<Touche>, ou « APP:nom » = lance la chaîne installée de ce nom.
 pub async fn roku(ip: &str, key: &str) -> Result<(), String> {
     if let Some(nom) = key.strip_prefix("APP:") {
@@ -48,6 +58,12 @@ pub async fn philips(ip: &str, key: &str) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn roku_liste_noms() {
+        let xml = r#"<apps><app id="12" type="appl" version="4.1">Netflix</app><app id="2285" type="appl" version="1">Hulu</app></apps>"#;
+        assert_eq!(super::roku_noms(xml), vec!["Netflix", "Hulu"]);
+    }
+
     #[test]
     fn pct_encode() {
         assert_eq!((super::pct('a'), super::pct(' '), super::pct('é')), ("a".into(), "%20".into(), "%C3%A9".into()));

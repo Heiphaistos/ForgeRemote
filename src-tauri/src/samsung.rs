@@ -7,8 +7,8 @@ use serde_json::{json, Value};
 use std::time::Duration;
 use tokio_tungstenite::tungstenite::Message;
 
-/// key=None : appairage seul. Retourne le jeton (nouveau ou renouvelé).
-pub async fn send(ip: &str, token: Option<&str>, key: Option<&str>) -> Result<Option<String>, String> {
+/// Ouvre la session et attend l'accord de la TV. Retourne le socket et le jeton (nouveau ou renouvelé).
+async fn connecter(ip: &str, token: Option<&str>) -> Result<(crate::net::Ws, Option<String>), String> {
     let name = STANDARD.encode("ForgeRemote");
     // Le jeton vient de la TV puis du disque : on n'accepte que des caractères sûrs pour une URL.
     let tok = token.filter(|t| !t.is_empty() && t.chars().all(|c| c.is_ascii_alphanumeric() || "-._~".contains(c))).map(|t| format!("&token={t}")).unwrap_or_default();
@@ -29,6 +29,12 @@ pub async fn send(ip: &str, token: Option<&str>, key: Option<&str>) -> Result<Op
     })
     .await
     .map_err(|_| "pas de confirmation sur la TV".to_string())??;
+    Ok((s, nouveau))
+}
+
+/// key=None : appairage seul. Retourne le jeton (nouveau ou renouvelé).
+pub async fn send(ip: &str, token: Option<&str>, key: Option<&str>) -> Result<Option<String>, String> {
+    let (mut s, nouveau) = connecter(ip, token).await?;
     if let Some(txt) = key.and_then(|k| k.strip_prefix("TEXT:")) {
         // Saisie dans le champ de texte actif de la TV (texte en base64).
         let m = json!({"method":"ms.remote.control","params":{"Cmd":STANDARD.encode(txt),"DataOfCmd":"base64","TypeOfRemote":"SendInputString"}});
@@ -74,4 +80,21 @@ async fn lancer_app(s: &mut crate::net::Ws, nom: &str) -> Result<(), String> {
     s.send(Message::text(go.to_string())).await.map_err(|e| e.to_string())?;
     tokio::time::sleep(Duration::from_millis(300)).await;
     Ok(())
+}
+
+/// Noms des applications installées sur la TV (liste fournie par la TV : ed.installedApp.get).
+pub async fn apps(ip: &str, token: Option<&str>) -> Result<Vec<String>, String> {
+    let (mut s, _) = connecter(ip, token).await?;
+    let q = json!({"method":"ms.channel.emit","params":{"event":"ed.installedApp.get","to":"host"}});
+    s.send(Message::text(q.to_string())).await.map_err(|e| e.to_string())?;
+    let liste = tokio::time::timeout(Duration::from_secs(5), async {
+        while let Some(m) = s.next().await {
+            let Ok(Message::Text(t)) = m else { continue };
+            let v: Value = serde_json::from_str(&t).unwrap_or_default();
+            if v["event"] == "ed.installedApp.get" { return v["data"]["data"].as_array().cloned(); }
+        }
+        None
+    }).await.ok().flatten().ok_or("cette TV ne fournit pas la liste de ses applications")?;
+    let _ = s.close(None).await;
+    Ok(liste.iter().filter_map(|a| a["name"].as_str()).map(|n| n.chars().take(40).collect()).collect())
 }

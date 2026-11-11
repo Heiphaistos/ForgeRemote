@@ -141,9 +141,26 @@ function ajouterApp(l, a) {
 }
 $("#apps-sugg").replaceChildren(...SUGGESTIONS.map(([l, a]) => { const c = document.createElement("button"); c.type = "button"; c.className = "chip"; c.textContent = l; c.onclick = () => ajouterApp(l, a); return c; }));
 $("#a-add").onclick = () => { ajouterApp($("#a-label").value, $("#a-name").value); $("#a-label").value = ""; $("#a-name").value = ""; };
+$("#a-read").onclick = async () => {
+  const tv = cur(), st = $("#a-read-st");
+  if (!tv) return (st.textContent = "Aucune TV sélectionnée");
+  st.textContent = "Lecture des applis de la TV…"; $("#apps-tv").replaceChildren();
+  try {
+    const l = await invoke("list_apps", { id: tv.id });
+    st.textContent = `${l.length} applis : clique pour ajouter un raccourci.`;
+    $("#apps-tv").replaceChildren(...l.map((n) => { const c = document.createElement("button"); c.type = "button"; c.className = "chip"; c.textContent = n; c.onclick = () => ajouterApp(n.slice(0, 14), n.toLowerCase()); return c; }));
+  } catch (e) { st.textContent = String(e.message ?? e); }
+};
 $("#a-reset").onclick = () => { apps = APPS_DEFAUT; saveApps(); };
 drawApps();
 initScenes(press, say, $);
+// Android : les boutons de volume du téléphone pilotent la TV (option)
+if (window.ForgeVol) {
+  window.__vol = (d) => press(d === "up" ? "vol_up" : "vol_down");
+  $("#l-volkeys").hidden = false;
+  $("#volkeys").checked = load("volkeys") === "1"; window.ForgeVol.set($("#volkeys").checked);
+  $("#volkeys").onchange = (e) => { store("volkeys", e.target.checked ? "1" : "0"); window.ForgeVol.set(e.target.checked); };
+}
 
 // Clavier (PC) : flèches, Entrée, Échap, chiffres, +/-, M, Page haut/bas, H.
 const MAP = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", Enter: "ok", Escape: "back", Backspace: "back",
