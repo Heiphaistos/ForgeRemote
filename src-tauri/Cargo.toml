@@ -1,6 +1,6 @@
 [package]
 name = "forgeremote"
-version = "0.9.4"
+version = "0.9.5"
 description = "Télécommande universelle pour TV"
 authors = ["Heiphaistos"]
 edition = "2024"
@@ -26,6 +26,7 @@ futures-util = { version = "0.3", default-features = false, features = ["sink", 
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 base64 = "0.22"
 sha2 = "0.10"
+ring = "0.17"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 

@@ -94,6 +94,7 @@ fn update_tv(st: St, id: String, name: String, brand: String, ip: String, secret
     let secret = secret.map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
     let mut s = st.lock().unwrap();
     let t = s.tvs.iter_mut().find(|t| t.id == id).ok_or("TV introuvable")?;
+    net::oublier(&t.ip); net::oublier(&ip); // Modifier > Enregistrer = nouvelle empreinte de certificat acceptée
     if t.brand != brand { t.token = None; }
     if secret.is_some() { t.token = secret; }
     (t.name, t.brand, t.ip, t.mac, t.power) = (name, brand, ip, mac, power);
@@ -111,6 +112,7 @@ async fn detect_tv(ip: String) -> Result<Option<Value>, String> {
 #[tauri::command]
 fn remove_tv(st: St, id: String) -> Result<(), String> {
     let mut s = st.lock().unwrap();
+    if let Some(t) = s.tvs.iter().find(|t| t.id == id) { net::oublier(&t.ip); }
     s.tvs.retain(|t| t.id != id);
     s.save()
 }
@@ -217,6 +219,9 @@ async fn scan_tvs() -> Result<Vec<Value>, String> {
 async fn check_update() -> Result<Option<Value>, String> { update::check().await }
 
 #[tauri::command]
+async fn somme_update(sums: String, name: String) -> Result<String, String> { update::somme_signee(&sums, &name).await }
+
+#[tauri::command]
 async fn install_update(app: AppHandle, url: String, name: String, sums: String) -> Result<(), String> {
     update::install(&url, &name, &sums).await?;
     app.exit(0); // l'installeur silencieux prend le relais
@@ -242,10 +247,11 @@ pub fn run() {
         .setup(|app| {
             let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
             update::nettoyer();
+            net::init(dir.clone());
             app.manage(Mutex::new(Store::load(dir)));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![list_tvs, add_tv, update_tv, detect_tv, remove_tv, send_key, send_text, list_apps, learn_mac, pair, scan_tvs, check_update, install_update, open_release])
+        .invoke_handler(tauri::generate_handler![list_tvs, add_tv, update_tv, detect_tv, remove_tv, send_key, send_text, list_apps, learn_mac, pair, scan_tvs, check_update, install_update, somme_update, open_release])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de ForgeRemote");
 }

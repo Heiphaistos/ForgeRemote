@@ -1,7 +1,7 @@
 //! Détection automatique d'une TV par sondage de ports connus (sans multicast : marche sur Android
 //! et derrière les adaptateurs virtuels qui font échouer SSDP). On ne fait qu'IDENTIFIER :
 //! l'ajout à la liste blanche reste un geste de l'utilisateur.
-use crate::net::ws;
+use crate::net::ws_libre as ws;
 use futures_util::{future::join_all, stream, FutureExt, StreamExt};
 use serde_json::{json, Value};
 use std::{net::Ipv4Addr, time::Duration};

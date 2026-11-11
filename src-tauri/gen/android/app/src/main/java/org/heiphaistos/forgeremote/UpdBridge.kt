@@ -40,17 +40,13 @@ class UpdBridge(private val a: Activity) {
   private fun hex(b: ByteArray): String = b.joinToString("") { Integer.toHexString((it.toInt() and 0xff) or 0x100).substring(1) }
 
   @JavascriptInterface
-  fun install(url: String, name: String, sums: String) {
+  fun install(url: String, name: String, wantSigned: String) {
     if (st == "dl") return
     st = "dl"
     Thread {
       try {
-        require(sure(url) && sure(sums) && Regex("[A-Za-z0-9._-]{1,100}").matches(name) && !name.contains("..")) { "URL non autorisée" }
-        val txt = get(sums).inputStream.bufferedReader().readText()
-        val want = txt.lines().firstNotNullOfOrNull { l ->
-          val p = l.trim().split(Regex("\\s+"), 2)
-          if (p.size == 2 && p[1].trim().trimStart('*') == name) p[0].lowercase() else null
-        } ?: error("somme SHA-256 absente de la release")
+        require(sure(url) && Regex("[0-9a-f]{64}").matches(wantSigned) && Regex("[A-Za-z0-9._-]{1,100}").matches(name) && !name.contains("..")) { "URL non autorisée" }
+        val want = wantSigned // somme issue de SHA256SUMS dont la signature Ed25519 a été vérifiée par le cœur Rust
         val dir = File(a.cacheDir, "update").apply { deleteRecursively(); mkdirs() }
         val f = File(dir, name)
         val md = MessageDigest.getInstance("SHA-256")

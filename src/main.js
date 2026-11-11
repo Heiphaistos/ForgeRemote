@@ -325,7 +325,8 @@ $("#updgo").onclick = async () => {
 };
 async function installerAndroid(u) {
   if (!u.apk || !u.sums) throw new Error(`APK absent de la release : ${u.page}`);
-  window.ForgeUpd.install(u.apk.url, u.apk.name, u.sums);
+  const somme = await invoke("somme_update", { sums: u.sums, name: u.apk.name }); // signature Ed25519 vérifiée côté Rust
+  window.ForgeUpd.install(u.apk.url, u.apk.name, somme);
   for (;;) {
     await new Promise((r) => setTimeout(r, 700));
     const st = window.ForgeUpd.status();

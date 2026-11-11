@@ -2,7 +2,7 @@ name: release
 # Lancement manuel seulement (Actions > release > Run workflow, branche = tag vX.Y.Z).
 # Les releases officielles (Windows + APK signé avec la clé de D:\MDP) sont publiées depuis le PC ;
 # les paquets Linux (deb, rpm, AppImage) sont construits sur le PC (WSL) ; ce workflow AJOUTE à cette release le macOS (dmg universel, non signé),
-# puis complète SHA256SUMS sans toucher aux fichiers déjà publiés.
+# et publie sa somme dans SHA256SUMS.macos : SHA256SUMS est signé (Ed25519) depuis le PC et ne doit jamais être modifié ici.
 on:
   workflow_dispatch:
     inputs:
@@ -58,16 +58,13 @@ jobs:
     steps:
       - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with: { path: dist, merge-multiple: true }
-      - name: Ajouter à la release et compléter SHA256SUMS
+      - name: Ajouter à la release (somme du dmg dans SHA256SUMS.macos)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ inputs.tag }}
         run: |
           set -e
-          mkdir old && cd old
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern SHA256SUMS
-          cd ../dist
-          sha256sum * > ../nouveau.sums
-          cat ../old/SHA256SUMS ../nouveau.sums | sort -u -k2 > SHA256SUMS.new
-          mv SHA256SUMS.new SHA256SUMS
+          cd dist
+          sha256sum * > ../SHA256SUMS.macos
+          mv ../SHA256SUMS.macos .
           gh release upload "$TAG" * --repo "$GITHUB_REPOSITORY" --clobber

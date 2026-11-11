@@ -51,6 +51,11 @@ avant installation silencieuse (Windows). Android/Linux : lien vers la release.
 - Noms de TV décodés (`65&quot;` -> `65"`), MAC lue dans la table ARP puis l'API de la TV.
 - Correctif : le bandeau « Installer » ne s'affiche plus en permanence.
 
+## Nouveautés 0.9.5 (sécurité)
+
+- Mises à jour signées : `SHA256SUMS` est signé en Ed25519 (`SHA256SUMS.sig`, clé privée hors dépôt) ; l'application vérifie la signature avec sa clé publique intégrée AVANT de se fier aux sommes SHA-256, puis vérifie le fichier. Un dépôt ou compte GitHub compromis ne suffit plus à faire installer un binaire modifié. Signature faite par `tools/sign_release.py`. La somme du dmg macOS est dans `SHA256SUMS.macos` (non signée : macOS ne s'installe pas automatiquement).
+- Certificat des TV épinglé à la première connexion (TOFU) : si le certificat d'une TV change (usurpation sur le réseau local, autre appareil à la même adresse), la connexion est refusée. TV réinitialisée : Modifier > Enregistrer oublie l'ancienne empreinte.
+
 ## Nouveautés 0.9.4
 
 - Raccourcis d'applis : « Lire les applis de la TV » (Samsung, LG, Roku) liste les applis réellement installées, un clic crée le bouton.
