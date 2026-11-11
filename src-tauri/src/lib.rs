@@ -182,6 +182,26 @@ async fn envoyer(st: &St<'_>, id: &str, key: Option<&str>) -> Result<(), String>
     Ok(())
 }
 
+/// Diagnostic d'une TV : joignabilité réseau (ports de la marque), appairage, applis lues. Lecture seule, aucune touche envoyée.
+#[tauri::command]
+async fn diagnostic(st: St<'_>, id: String) -> Result<Vec<String>, String> {
+    let tv = st.lock().unwrap().get(&id)?; // verrou relâché avant tout await
+    let mut o = vec![format!("Profil : marque « {} », IP « {} », jeton {}", tv.brand, if tv.ip.is_empty() { "aucune" } else { &tv.ip }, if tv.token.is_some() { "présent" } else { "absent" })];
+    if wifi_idx(&tv).is_err() { o.push("Wi-Fi : IMPOSSIBLE, ce profil n'a pas d'adresse IP (Modifier > Adresse IP de la TV).".into()); return Ok(o); }
+    let ports: &[u16] = match base(&tv.brand) { "samsung" => &[8001, 8002], "lg" => &[3001, 3000], "roku" => &[8060], "panasonic" => &[55000], "philips" => &[1925], "sony" => &[80], "samsunglegacy" => &[55000], "vizio" => &[7345, 9000], "xiaomi" => &[6095], "lgnetcast" => &[8080], "firetv" => &[8080], "androidtv" => &[6466, 6467], _ => &[] };
+    let ip: std::net::Ipv4Addr = valider_ip(&tv.ip)?;
+    for p in ports {
+        let t = std::time::Instant::now();
+        let ok = tokio::time::timeout(std::time::Duration::from_millis(2500), tokio::net::TcpStream::connect((ip, *p))).await.is_ok_and(|r| r.is_ok());
+        o.push(format!("Port {p} : {} ({} ms)", if ok { "joignable" } else { "INJOIGNABLE (TV éteinte/en veille, mauvaise IP, autre Wi-Fi, ou autorisation « réseau local / appareils à proximité » refusée à l'appli)" }, t.elapsed().as_millis()));
+    }
+    if base(&tv.brand) == "samsung" {
+        let apps = samsung::apps_rest(&tv.ip).await;
+        o.push(if apps.is_empty() { "Applis (API REST Samsung) : aucune lue (TV injoignable ou API fermée)".into() } else { format!("Applis lues sur la TV ({}) : {}", apps.len(), apps.iter().map(|a| a.1.clone()).collect::<Vec<_>>().join(", ")) });
+    }
+    Ok(o)
+}
+
 /// Applications installées sur la TV (Samsung, LG, Roku), pour créer des raccourcis sans deviner leur nom.
 #[tauri::command]
 async fn list_apps(st: St<'_>, id: String) -> Result<Vec<String>, String> {
@@ -286,7 +306,7 @@ pub fn run() {
             app.manage(Mutex::new(Store::load(dir)));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![list_tvs, add_tv, update_tv, detect_tv, remove_tv, send_key, send_text, code_afficher, code_finir, list_apps, list_sources, learn_mac, pair, scan_tvs, check_update, install_update, somme_update, open_release])
+        .invoke_handler(tauri::generate_handler![list_tvs, add_tv, update_tv, detect_tv, remove_tv, send_key, send_text, diagnostic, code_afficher, code_finir, list_apps, list_sources, learn_mac, pair, scan_tvs, check_update, install_update, somme_update, open_release])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de ForgeRemote");
 }

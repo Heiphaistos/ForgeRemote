@@ -56,9 +56,11 @@ const peutWifi = (tv, k) => (k.startsWith("app:") ? tv.apps : k.startsWith("src:
 /** Marque IR utilisable : profil IR, IR ajouté au profil, ou (téléphone avec émetteur) la même marque que le Wi-Fi. */
 const irDe = (tv) => (tv.brand.startsWith("ir_") ? tv.brand : tv.irBrand || (tv.brand !== "bt" && irDispo() ? `ir_${base(tv)}` : null));
 const okWifi = (tv, k) => tv.brand !== "bt" && !!tv.ip && peutWifi(tv, k);
+/** Profil infrarouge sans IP : un bouton d'appli peut retrouver l'IP de la TV tout seul (Samsung, LG, Roku). */
+const peutDecouvrir = (tv, k) => k.startsWith("app:") && !tv.ip && tv.brand.startsWith("ir_") && ["samsung", "lg", "roku"].includes(base(tv));
 const okIr = (tv, k) => { const b = irDe(tv); return !!b && irKeyFor(b, k) !== null; };
 const okBt = (tv, k) => (tv.brand === "bt" || tv.bt) && BT_KEYS.includes(k);
-const support = (tv, k) => okWifi(tv, k) || okIr(tv, k) || okBt(tv, k);
+const support = (tv, k) => okWifi(tv, k) || okIr(tv, k) || okBt(tv, k) || peutDecouvrir(tv, k);
 /** Grise les touches que la/les TV ciblée(s) ne gèrent pas (au lieu d'une erreur au clic). */
 function majTouches() {
   const cs = cibles();
@@ -70,21 +72,34 @@ function majTouches() {
   });
 }
 
+/** Cherche la TV sur le réseau et enregistre son IP dans le profil (une seule TV de cette marque doit répondre). */
+async function decouvrir(tv) {
+  say("Recherche de la TV sur le Wi-Fi (environ 8 s)…");
+  const l = (await invoke("scan_tvs")).filter((d) => d.brand === base(tv));
+  if (!l.length) throw new Error("TV introuvable sur le Wi-Fi (allumée ? même réseau ? autorisation « réseau local » accordée ?) : saisis son IP dans Modifier");
+  if (l.length > 1) throw new Error(`Plusieurs TV de cette marque trouvées (${l.map((d) => d.ip).join(", ")}) : saisis l'IP dans Modifier`);
+  await invoke("update_tv", { id: tv.id, name: tv.name, brand: tv.brand, ip: l[0].ip, secret: null, mac: tv.mac ?? null, power: tv.power, irBrand: tv.irBrand ?? null, bt: !!tv.bt });
+  await refresh(tv.id);
+  return tvs.find((x) => x.id === tv.id) ?? tv;
+}
+
 async function envoyer(tv, k) {
+  if (peutDecouvrir(tv, k)) tv = await decouvrir(tv);
   // Marche/arrêt : l'infrarouge d'abord (TV en veille = injoignable en Wi-Fi), sauf profil réglé « Wi-Fi seulement ».
   const ordre = k === "power" && tv.power !== "wifi" ? ["ir", "wifi", "bt"] : ["wifi", "ir", "bt"];
-  let premiere = null;
+  const erreurs = [];
+  const noter = (mode, e) => erreurs.push(`${{ wifi: "Wi-Fi", ir: "Infrarouge", bt: "Bluetooth" }[mode]} : ${e?.message ?? e}`);
   for (const mode of ordre) {
     if (!(mode === "wifi" ? okWifi(tv, k) : mode === "ir" ? okIr(tv, k) && (tv.power !== "wifi" || k !== "power") : okBt(tv, k))) continue;
-    if (mode === "ir" && !irDispo()) { premiere ??= new Error("Infrarouge : disponible seulement sur un téléphone avec émetteur"); continue; }
+    if (mode === "ir" && !irDispo()) { noter(mode, "ce téléphone n'a pas d'émetteur infrarouge"); continue; }
     try {
       if (mode === "wifi") await invoke("send_key", { id: tv.id, key: k });
       else if (mode === "ir") irSend(irDe(tv), k);
       else await btSend(tv.id, k);
       return;
-    } catch (e) { premiere ??= e; }
+    } catch (e) { noter(mode, e); }
   }
-  throw premiere ?? new Error("Touche non disponible pour ce profil (ajoute un mode : Modifier > Combiner plusieurs modes)");
+  throw new Error(erreurs.length ? erreurs.join(" — ") : "Touche non disponible pour ce profil (ajoute un mode : Modifier > Combiner plusieurs modes)");
 }
 
 async function press(k) {
@@ -170,6 +185,17 @@ $("#a-read").onclick = async () => {
 $("#a-reset").onclick = () => { apps = APPS_DEFAUT; saveApps(); };
 drawApps();
 initScenes(press, say, $);
+// Diagnostic : ce que l'appli voit (TV joignable ? applis ? émetteur IR ? Bluetooth ?) pour comprendre un bouton qui ne répond pas
+$("#diag-go").onclick = async () => {
+  const out = $("#diag-out"), tv = cur();
+  if (!tv) return (out.textContent = "Aucune TV sélectionnée.");
+  out.textContent = "Diagnostic en cours…";
+  const l = [`ForgeRemote ${$("#ver").textContent}`, `Plateforme : ${/Android/i.test(navigator.userAgent) ? "Android" : "PC"} ; émetteur infrarouge : ${irDispo() ? "oui" : "non"} ; pont Bluetooth : ${window.ForgeBT ? "oui" : "non"}`];
+  l.push(`Modes du profil : Wi-Fi ${tv.brand !== "bt" && tv.ip ? "oui" : "non"} ; infrarouge ${irDe(tv) ? `oui (${irDe(tv)})` : "non"} ; Bluetooth ${tv.brand === "bt" || tv.bt ? "oui" : "non"}`);
+  for (const k of ["app:plex", "app:youtube", "vol_up", "power"]) l.push(`Bouton ${k} : Wi-Fi ${okWifi(tv, k) ? "oui" : "non"} / infrarouge ${okIr(tv, k) ? "oui" : "non"} / Bluetooth ${okBt(tv, k) ? "oui" : "non"}`);
+  try { l.push(...(await invoke("diagnostic", { id: tv.id }))); } catch (e) { l.push(`Diagnostic réseau : ${e?.message ?? e}`); }
+  out.textContent = l.join(String.fromCharCode(10));
+};
 // Entrées (HDMI...) de la TV LG : liste lue sur la TV, un bouton par entrée
 $("#src-read").onclick = async () => {
   const tv = cur(); if (!tv) return;
@@ -214,7 +240,7 @@ function filtrerMarques(mode, brand) {
 modeSel.onchange = () => { filtrerMarques(modeSel.value); formUi(); };
 function formUi() {
   const b = brandSel.value, local = b.startsWith("ir_") || b === "bt";
-  $("#l-power").hidden = local; $("#scan").hidden = local;
+  $("#l-power").hidden = local; $("#scan").hidden = b === "bt";
   const ir = b.startsWith("ir_");
   $("#l-ip").hidden = b === "bt"; $("#l-mac").hidden = local; $("#detect").hidden = local;
   $("#l-ip-t").textContent = ir ? "IP de la TV (facultatif : pour les applis Plex, Netflix…)" : "Adresse IP de la TV";
@@ -302,7 +328,8 @@ async function lancerScan() {
       const c = document.createElement("button");
       c.type = "button"; c.className = "chip"; c.textContent = `${d.name} · ${d.ip} (${d.brand})`;
       c.onclick = () => {
-        modeSel.value = "wifi"; filtrerMarques("wifi", d.brand); $("#f-ip").value = d.ip;
+        if (modeSel.value !== "ir") { modeSel.value = "wifi"; filtrerMarques("wifi", d.brand); }
+        $("#f-ip").value = d.ip;
         if (!$("#f-name").value) $("#f-name").value = String(d.name).slice(0, 40);
         formUi(); scanDlg.close();
       };

@@ -51,6 +51,12 @@ avant installation silencieuse (Windows). Android/Linux : lien vers la release.
 - Noms de TV décodés (`65&quot;` -> `65"`), MAC lue dans la table ARP puis l'API de la TV.
 - Correctif : le bandeau « Installer » ne s'affiche plus en permanence.
 
+## Nouveautés 0.10.1
+
+- Profil infrarouge sans IP : un bouton d'appli (Plex, Netflix, YouTube, Disney+...) retrouve tout seul la TV sur le Wi-Fi (Samsung, LG, Roku), enregistre son IP dans le profil, puis lance l'appli. « Chercher sur le réseau » est aussi disponible dans un profil infrarouge.
+- Paramètres > Diagnostic : teste la TV sélectionnée (ports joignables, applis lues, émetteur infrarouge, Bluetooth, modes du profil) pour comprendre un bouton qui ne répond pas.
+- Les messages d'erreur détaillent chaque mode essayé (Wi-Fi : ..., Infrarouge : ...).
+
 ## Nouveautés 0.10.0
 
 - **Combiner plusieurs modes dans un même profil** : Wi-Fi (marque + IP) + infrarouge (émetteur du téléphone) + Bluetooth. Chaque touche prend le premier mode qui la gère (Wi-Fi, puis infrarouge, puis Bluetooth ; Marche/arrêt : infrarouge d'abord) et se replie sur le suivant si l'envoi échoue. Réglage : Modifier > « Combiner plusieurs modes ».

@@ -137,7 +137,7 @@
       </div>
     </div>
     <p id="msg" role="status"></p>
-    <footer class="foot"><span id="ver">v0.10.0</span></footer>
+    <footer class="foot"><span id="ver">v0.10.1</span></footer>
   </main>
 
   <dialog id="scan-dlg">
@@ -152,6 +152,7 @@
       <button type="button" data-tab="look" aria-pressed="true">Apparence</button>
       <button type="button" data-tab="apps">Raccourcis</button>
       <button type="button" data-tab="scenes">Scènes</button>
+      <button type="button" data-tab="diag">Diagnostic</button>
       <button type="button" data-tab="maj">Mises à jour</button>
     </nav>
     <section data-pane="look">
@@ -185,6 +186,11 @@
       <label>Nom du bouton <input id="sc-label" maxlength="14" placeholder="Film" /></label>
       <label>Touches <input id="sc-steps" maxlength="200" placeholder="power 5s hdmi1 vol_down" /></label>
       <div class="row"><button type="button" id="sc-add" class="b pill">Ajouter la scène</button></div>
+    </section>
+    <section data-pane="diag" hidden>
+      <p class="hint">Teste la TV sélectionnée (lecture seule, aucune touche envoyée) et indique ce que ce téléphone/PC peut faire. Si un bouton ne marche pas, copie ce texte et envoie-le.</p>
+      <div class="row"><button type="button" id="diag-go" class="b pill">Lancer le diagnostic</button></div>
+      <pre id="diag-out" class="hint" style="white-space:pre-wrap;user-select:text"></pre>
     </section>
     <section data-pane="maj" hidden>
       <p id="maj-ver" class="hint"></p>
