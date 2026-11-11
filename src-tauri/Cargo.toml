@@ -1,6 +1,6 @@
 [package]
 name = "forgeremote"
-version = "0.9.1"
+version = "0.9.2"
 description = "Télécommande universelle pour TV"
 authors = ["Heiphaistos"]
 edition = "2024"

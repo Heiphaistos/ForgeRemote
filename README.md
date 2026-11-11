@@ -51,6 +51,10 @@ avant installation silencieuse (Windows). Android/Linux : lien vers la release.
 - Noms de TV décodés (`65&quot;` -> `65"`), MAC lue dans la table ARP puis l'API de la TV.
 - Correctif : le bandeau « Installer » ne s'affiche plus en permanence.
 
+## Nouveautés 0.9.2
+
+- Correctif : le bouton « Groupe » ne dépasse plus de la télécommande (télécommande un peu plus large, boutons d'action sur une seule ligne).
+
 ## Nouveautés 0.9.1
 
 - Profil infrarouge + IP facultative de la TV : les boutons d'applis (Plex, Disney+, YouTube, Netflix, Prime et tes raccourcis) s'activent et se lancent par le Wi-Fi, l'infrarouge restant utilisé pour tout le reste. Modifier le profil, renseigner l'IP.
