@@ -98,6 +98,10 @@
         <input id="chan" inputmode="numeric" maxlength="4" placeholder="Aller à la chaîne n°…" autocomplete="off" />
         <button id="chan-go" class="b pill">Aller</button>
       </div>
+      <div class="txtbox" id="srcbox" hidden>
+        <button id="src-read" class="b pill">Entrées de la TV (LG)</button>
+      </div>
+      <div class="row apps" id="srclist"></div>
       <div class="morepad">
         <button data-k="tools" class="b small">Outils</button>
         <button data-k="prev_ch" class="b small">Chaîne préc.</button>
@@ -133,7 +137,7 @@
       </div>
     </div>
     <p id="msg" role="status"></p>
-    <footer class="foot"><span id="ver">v0.9.5</span></footer>
+    <footer class="foot"><span id="ver">v0.9.6</span></footer>
   </main>
 
   <dialog id="scan-dlg">
@@ -213,6 +217,12 @@
             <option value="philips">Philips</option>
             <option value="roku">Roku / TCL Roku</option>
           </optgroup>
+          <optgroup label="Expérimental (jamais testé sur une vraie TV)">
+            <option value="vizio">Vizio SmartCast</option>
+            <option value="xiaomi">Xiaomi Mi TV</option>
+            <option value="lgnetcast">LG Netcast (2012-2014)</option>
+            <option value="firetv">Amazon Fire TV (Wi-Fi)</option>
+          </optgroup>
           <optgroup label="Bluetooth (téléphone Android)">
             <option value="bt">Bluetooth : Android TV, Fire TV, TV avec Bluetooth</option>
           </optgroup>
@@ -222,7 +232,8 @@
       <label id="l-ip"><span id="l-ip-t">Adresse IP de la TV</span> <input id="f-ip" inputmode="decimal" placeholder="192.168.1.20" /></label>
       <button type="button" id="detect" class="b pill">Détecter la marque de cette IP</button>
       <p id="detect-res" class="hint"></p>
-      <label id="l-psk" hidden>Clé PSK Sony <input id="f-psk" autocomplete="off" placeholder="réglée dans les paramètres réseau de la TV" /></label>
+      <button type="button" id="pin-go" class="b pill" hidden>Afficher le code sur la TV</button>
+      <label id="l-psk" hidden><span id="l-psk-t">Clé PSK Sony</span> <input id="f-psk" autocomplete="off" placeholder="réglée dans les paramètres réseau de la TV" /></label>
       <div id="l-bt" hidden>
         <label>TV Bluetooth (déjà appairée avec ce téléphone) <select id="f-bt-dev"></select></label>
         <button type="button" id="bt-visible" class="b pill">Rendre le téléphone visible (2 min)</button>

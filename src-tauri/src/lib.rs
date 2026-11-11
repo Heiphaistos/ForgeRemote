@@ -1,4 +1,5 @@
 mod detect;
+mod extra;
 mod http;
 mod keys;
 mod lg;
@@ -150,6 +151,10 @@ async fn envoyer(st: &St<'_>, id: &str, key: Option<&str>) -> Result<(), String>
         (2, Some(c)) => panasonic::send(&tv.ip, c).await.map(|_| None),
         (3, Some(c)) => http::roku(&tv.ip, c).await.map(|_| None),
         (4, Some(c)) => http::philips(&tv.ip, c).await.map(|_| None),
+        (6, Some(c)) => extra::vizio(&tv.ip, tok, c).await.map(|_| None),
+        (7, Some(c)) => extra::xiaomi(&tv.ip, c).await.map(|_| None),
+        (8, Some(c)) => extra::netcast(&tv.ip, tok, c).await.map(|_| None),
+        (9, Some(c)) => extra::firetv(&tv.ip, tok, c).await.map(|_| None),
         (_, Some(c)) => sony::send(&tv.ip, tok, c).await.map(|_| None),
     };
     let nouveau = match res {
@@ -180,6 +185,23 @@ async fn list_apps(st: St<'_>, id: String) -> Result<Vec<String>, String> {
     v.sort_by_key(|n| n.to_lowercase()); v.dedup();
     v.truncate(200);
     Ok(v)
+}
+
+/// Appairage par code (Vizio, LG Netcast, Fire TV) : 1) affiche le code sur la TV.
+#[tauri::command]
+async fn code_afficher(brand: String, ip: String) -> Result<(), String> { extra::code_afficher(&brand, &valider_ip(&ip)?.to_string()).await }
+
+/// 2) valide le code saisi : rend le jeton à enregistrer dans le profil (champ « clé »).
+#[tauri::command]
+async fn code_finir(brand: String, ip: String, pin: String) -> Result<String, String> { extra::code_finir(&brand, &valider_ip(&ip)?.to_string(), pin.trim()).await }
+
+/// Entrées (HDMI...) de la TV LG : [{id, nom}].
+#[tauri::command]
+async fn list_sources(st: St<'_>, id: String) -> Result<Vec<Value>, String> {
+    let tv = st.lock().unwrap().get(&id)?; // verrou relâché avant tout await
+    wifi_idx(&tv).map_err(|_| "profil sans IP : renseigne l'IP de la TV".to_string())?;
+    if base(&tv.brand) != "lg" { return Err("liste des entrées : LG webOS seulement".into()); }
+    Ok(lg::sources(&tv.ip, tv.token.as_deref()).await?.into_iter().map(|(i, n)| json!({"id": i, "nom": n})).collect())
 }
 
 /// Saisie de texte dans le champ actif de la TV (clavier du téléphone/PC) : Samsung, LG, Roku.
@@ -251,7 +273,7 @@ pub fn run() {
             app.manage(Mutex::new(Store::load(dir)));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![list_tvs, add_tv, update_tv, detect_tv, remove_tv, send_key, send_text, list_apps, learn_mac, pair, scan_tvs, check_update, install_update, somme_update, open_release])
+        .invoke_handler(tauri::generate_handler![list_tvs, add_tv, update_tv, detect_tv, remove_tv, send_key, send_text, code_afficher, code_finir, list_apps, list_sources, learn_mac, pair, scan_tvs, check_update, install_update, somme_update, open_release])
         .run(tauri::generate_context!())
         .expect("erreur au lancement de ForgeRemote");
 }

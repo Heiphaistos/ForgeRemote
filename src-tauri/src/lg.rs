@@ -45,6 +45,10 @@ pub async fn send(ip: &str, token: Option<&str>, key: Option<&str>) -> Result<Op
             s.send(Message::text(json!({"type":"request","id":"txt","uri":"ssap://com.webos.service.ime/insertText","payload":{"text":&k[5..],"replace":0}}).to_string())).await.map_err(|e| e.to_string())?;
             tokio::time::sleep(Duration::from_millis(300)).await;
         }
+        Some(k) if k.starts_with("SRC:") => {
+            s.send(Message::text(json!({"type":"request","id":"src","uri":"ssap://tv/switchInput","payload":{"inputId":&k[4..]}}).to_string())).await.map_err(|e| e.to_string())?;
+            tokio::time::sleep(Duration::from_millis(300)).await;
+        }
         Some(k) if k.starts_with("APP:") => {
             // Application par son nom : liste des applis de la TV, puis lancement de celle qui correspond.
             let nom = &k[4..];
@@ -83,4 +87,17 @@ pub async fn apps(ip: &str, token: Option<&str>) -> Result<Vec<String>, String> 
     let r = lire(&mut s, "apps", 5).await?;
     let _ = s.close(None).await;
     Ok(r["payload"]["launchPoints"].as_array().map(|a| a.iter().filter_map(|p| p["title"].as_str()).map(|n| n.chars().take(40).collect()).collect()).unwrap_or_default())
+}
+
+/// Entrées de la TV (HDMI 1, AV...) : [(identifiant, nom)] via tv/getExternalInputList.
+pub async fn sources(ip: &str, token: Option<&str>) -> Result<Vec<(String, String)>, String> {
+    let mut s = match ws(&format!("wss://{ip}:3001"), 4).await { Ok(s) => s, Err(_) => ws(&format!("ws://{ip}:3000"), 4).await? };
+    let mut p = json!({"forcePairing":false,"pairingType":"PROMPT","manifest":{"manifestVersion":1,"permissions":PERMS}});
+    if let Some(t) = token { p["client-key"] = json!(t); }
+    s.send(Message::text(json!({"type":"register","id":"reg","payload":p}).to_string())).await.map_err(|e| e.to_string())?;
+    lire(&mut s, "reg", if token.is_some() { 5 } else { 30 }).await?;
+    s.send(Message::text(json!({"type":"request","id":"src","uri":"ssap://tv/getExternalInputList"}).to_string())).await.map_err(|e| e.to_string())?;
+    let r = lire(&mut s, "src", 5).await?;
+    let _ = s.close(None).await;
+    Ok(r["payload"]["devices"].as_array().map(|a| a.iter().filter_map(|d| Some((d["id"].as_str()?.to_string(), d["label"].as_str().unwrap_or(d["id"].as_str()?).chars().take(30).collect()))).collect()).unwrap_or_default())
 }

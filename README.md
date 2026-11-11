@@ -51,6 +51,11 @@ avant installation silencieuse (Windows). Android/Linux : lien vers la release.
 - Noms de TV décodés (`65&quot;` -> `65"`), MAC lue dans la table ARP puis l'API de la TV.
 - Correctif : le bandeau « Installer » ne s'affiche plus en permanence.
 
+## Nouveautés 0.9.6
+
+- Marques expérimentales (protocoles des bibliothèques publiques pyvizio, pymitv, pylgnetcast et de l'API locale Fire TV ; vérifiés seulement contre des serveurs simulés, JAMAIS sur une vraie TV) : Vizio SmartCast (appairage par code), Xiaomi Mi TV, LG Netcast 2012-2014 (appairage par code), Amazon Fire TV (appairage par code). Bouton « Afficher le code sur la TV » dans le profil. Xiaomi et Vizio sont aussi reconnus par la recherche réseau.
+- LG webOS : liste des entrées (HDMI 1, AV...) lue sur la TV, un bouton par entrée (Plus de touches > Entrées de la TV).
+
 ## Nouveautés 0.9.5 (sécurité)
 
 - Mises à jour signées : `SHA256SUMS` est signé en Ed25519 (`SHA256SUMS.sig`, clé privée hors dépôt) ; l'application vérifie la signature avec sa clé publique intégrée AVANT de se fier aux sommes SHA-256, puis vérifie le fichier. Un dépôt ou compte GitHub compromis ne suffit plus à faire installer un binaire modifié. Signature faite par `tools/sign_release.py`. La somme du dmg macOS est dans `SHA256SUMS.macos` (non signée : macOS ne s'installe pas automatiquement).

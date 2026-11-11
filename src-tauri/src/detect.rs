@@ -55,6 +55,9 @@ async fn lg(ip: Ipv4Addr) -> Id {
     ok.then(|| "LG webOS".to_string())
 }
 
+async fn xiaomi(ip: Ipv4Addr) -> Id { crate::extra::xiaomi_vivante(&ip.to_string()).await.then(|| "Xiaomi Mi TV".to_string()) }
+async fn vizio(ip: Ipv4Addr) -> Id { crate::extra::vizio_vivante(&ip.to_string()).await.then(|| "Vizio SmartCast".to_string()) }
+
 /// Adresse MAC Wi-Fi lue dans l'API de la TV allumée (marche aussi sur Android, où la table ARP est interdite).
 /// Samsung : GET :8001/api/v2/ -> device.wifiMac ; Roku : GET :8060/query/device-info -> <wifi-mac>.
 pub async fn mac_via_api(brand: &str, ip: &str) -> Option<String> {
@@ -80,6 +83,8 @@ pub async fn probe(ip: Ipv4Addr) -> Option<Value> {
         ("philips", philips(c.clone(), ip).boxed()),
         ("sony", sony(c.clone(), ip).boxed()),
         ("lg", lg(ip).boxed()),
+        ("xiaomi", xiaomi(ip).boxed()),
+        ("vizio", vizio(ip).boxed()),
     ];
     let (marques, futs): (Vec<_>, Vec<_>) = tests.into_iter().unzip();
     let res = join_all(futs).await;
@@ -107,7 +112,7 @@ pub async fn scan_sous_reseau() -> Result<Vec<Value>, String> {
     let hotes = (1..255u8).map(move |h| Ipv4Addr::new(o[0], o[1], o[2], h)).filter(move |a| *a != moi);
     let mut v: Vec<Value> = stream::iter(hotes)
         .map(|ip| async move {
-            let sonde = [8001u16, 8060, 3001, 3000, 55000, 1925, 80];
+            let sonde = [8001u16, 8060, 3001, 3000, 55000, 1925, 80, 6095, 7345, 9000];
             let r = join_all(sonde.iter().map(|p| ouvert(ip, *p))).await;
             if r.iter().any(|x| *x) { probe(ip).await } else { None }
         })
