@@ -39,6 +39,11 @@ fn ip_profil(brand: &str, ip: &str) -> Result<String, String> {
     Ok(valider_ip(ip)?.to_string())
 }
 
+/// Marque infrarouge ajoutée à un profil : vide = aucune, sinon `ir_<marque>` valide.
+fn ir_valide(b: Option<String>) -> Result<Option<String>, String> {
+    match b.map(|s| s.trim().to_string()).filter(|s| !s.is_empty()) { None => Ok(None), Some(s) if is_ir(&s) => Ok(Some(s)), Some(_) => Err("marque infrarouge invalide".into()) }
+}
+
 fn brand_idx(b: &str) -> Result<usize, String> {
     keys::BRANDS.iter().position(|x| *x == b).ok_or_else(|| "marque non gérée".to_string())
 }
@@ -51,7 +56,7 @@ fn wifi_idx(t: &Tv) -> Result<usize, String> {
 
 /// Jamais le jeton ni la clé vers l'interface.
 fn vue(t: &Tv) -> Value {
-    json!({"id":t.id,"name":t.name,"brand":t.brand,"ip":t.ip,"paired":t.token.is_some(),"ir":is_local(&t.brand),"wol":t.mac.is_some(),"mac":t.mac,"power":t.power,"keys":wifi_idx(t).map(keys::supported).unwrap_or_default(),"apps":wifi_idx(t).is_ok_and(|b| matches!(b, 0 | 1 | 3 | 10))})
+    json!({"id":t.id,"name":t.name,"brand":t.brand,"ip":t.ip,"paired":t.token.is_some(),"ir":is_local(&t.brand),"wol":t.mac.is_some(),"mac":t.mac,"power":t.power,"irBrand":t.ir_brand,"bt":t.bt || t.brand == "bt","keys":wifi_idx(t).map(keys::supported).unwrap_or_default(),"apps":wifi_idx(t).is_ok_and(|b| matches!(b, 0 | 1 | 3 | 10))})
 }
 
 #[cfg(test)]
@@ -68,7 +73,8 @@ mod tests {
 fn list_tvs(st: St) -> Vec<Value> { st.lock().unwrap().tvs.iter().map(vue).collect() }
 
 #[tauri::command]
-fn add_tv(st: St, name: String, brand: String, ip: String, secret: Option<String>, mac: Option<String>, power: Option<String>) -> Result<Value, String> {
+fn add_tv(st: St, name: String, brand: String, ip: String, secret: Option<String>, mac: Option<String>, power: Option<String>, ir_brand: Option<String>, bt: Option<bool>) -> Result<Value, String> {
+    let ir_brand = ir_valide(ir_brand)?;
     let ip = ip_profil(&brand, &ip)?;
     let name = name.trim().chars().take(40).collect::<String>();
     if name.is_empty() { return Err("nom requis".into()); }
@@ -77,7 +83,7 @@ fn add_tv(st: St, name: String, brand: String, ip: String, secret: Option<String
     let power = store::power_valide(power)?;
     let token = secret.map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
     let id = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_err(|e| e.to_string())?.as_millis().to_string();
-    let tv = Tv { id, name, brand, ip, token, mac, power };
+    let tv = Tv { id, name, brand, ip, token, mac, power, ir_brand, bt: bt.unwrap_or(false) };
     let mut s = st.lock().unwrap();
     s.tvs.push(tv.clone());
     s.save()?;
@@ -87,7 +93,8 @@ fn add_tv(st: St, name: String, brand: String, ip: String, secret: Option<String
 /// Modifie un profil existant (nom, marque, IP, MAC, clé). Le jeton d'appairage est gardé
 /// sauf si la marque change ou si une nouvelle clé est fournie.
 #[tauri::command]
-fn update_tv(st: St, id: String, name: String, brand: String, ip: String, secret: Option<String>, mac: Option<String>, power: Option<String>) -> Result<Value, String> {
+fn update_tv(st: St, id: String, name: String, brand: String, ip: String, secret: Option<String>, mac: Option<String>, power: Option<String>, ir_brand: Option<String>, bt: Option<bool>) -> Result<Value, String> {
+    let ir_brand = ir_valide(ir_brand)?;
     let ip = ip_profil(&brand, &ip)?;
     let name = name.trim().chars().take(40).collect::<String>();
     if name.is_empty() { return Err("nom requis".into()); }
@@ -100,7 +107,7 @@ fn update_tv(st: St, id: String, name: String, brand: String, ip: String, secret
     net::oublier(&t.ip); net::oublier(&ip); // Modifier > Enregistrer = nouvelle empreinte de certificat acceptée
     if t.brand != brand { t.token = None; }
     if secret.is_some() { t.token = secret; }
-    (t.name, t.brand, t.ip, t.mac, t.power) = (name, brand, ip, mac, power);
+    (t.name, t.brand, t.ip, t.mac, t.power, t.ir_brand, t.bt) = (name, brand, ip, mac, power, ir_brand, bt.unwrap_or(false));
     let v = vue(t);
     s.save()?;
     Ok(v)

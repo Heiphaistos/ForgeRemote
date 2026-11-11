@@ -13,6 +13,7 @@ const cur = () => tvs.find((t) => t.id === sel.value);
 const store = (k, v) => { try { v === undefined ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} };
 const load = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 const NEEDS_PAIR = ["samsung", "lg"];
+$("#f-ir-brand").replaceChildren(...irMarques().map((x) => new Option(x.name, x.id)));
 $("#ir-group").replaceChildren(...irMarques().map((m) => new Option(`${m.name} (IR)`, m.id)));
 const AIDE_RESEAU = "Vérifie que la TV est allumée, sur le même Wi-Fi, et que l'autorisation « réseau local / appareils à proximité » est accordée à l'app (Android).";
 
@@ -47,14 +48,17 @@ async function refresh(keep) {
 }
 
 // Ce que chaque profil sait faire : Wi-Fi = table de la marque (Rust), IR = base de codes, Bluetooth = table HID.
-const estLg = (tv) => tv.brand.replace(/^ir_/, "") === "lg" && !!tv.ip;
+// Un profil peut COMBINER plusieurs modes : Wi-Fi (marque + IP), infrarouge (émetteur du téléphone), Bluetooth.
+// Chaque touche prend le premier mode qui la gère, avec repli sur le suivant si l'envoi échoue.
+const base = (tv) => tv.brand.replace(/^ir_/, "");
+const estLg = (tv) => base(tv) === "lg" && !!tv.ip;
 const peutWifi = (tv, k) => (k.startsWith("app:") ? tv.apps : k.startsWith("src:") ? estLg(tv) : !!tv.keys?.includes(k));
-const peutIrSecours = (tv, k) => irDispo() && irKeyFor(tv.brand, k) !== null; // TV Wi-Fi sans cette touche : l'infrarouge la fait
-function support(tv, k) {
-  if (tv.brand === "bt") return BT_KEYS.includes(k);
-  if (tv.ir) return irKeyFor(tv.brand, k) !== null || (!!tv.ip && peutWifi(tv, k));
-  return peutWifi(tv, k) || peutIrSecours(tv, k);
-}
+/** Marque IR utilisable : profil IR, IR ajouté au profil, ou (téléphone avec émetteur) la même marque que le Wi-Fi. */
+const irDe = (tv) => (tv.brand.startsWith("ir_") ? tv.brand : tv.irBrand || (tv.brand !== "bt" && irDispo() ? `ir_${base(tv)}` : null));
+const okWifi = (tv, k) => tv.brand !== "bt" && !!tv.ip && peutWifi(tv, k);
+const okIr = (tv, k) => { const b = irDe(tv); return !!b && irKeyFor(b, k) !== null; };
+const okBt = (tv, k) => (tv.brand === "bt" || tv.bt) && BT_KEYS.includes(k);
+const support = (tv, k) => okWifi(tv, k) || okIr(tv, k) || okBt(tv, k);
 /** Grise les touches que la/les TV ciblée(s) ne gèrent pas (au lieu d'une erreur au clic). */
 function majTouches() {
   const cs = cibles();
@@ -62,22 +66,25 @@ function majTouches() {
   document.querySelectorAll("[data-k]").forEach((b) => {
     const ok = !cs.length || cs.some((tv) => support(tv, b.dataset.k));
     b.disabled = !ok; b.classList.toggle("indispo", !ok);
-    if (!ok) b.title = "Non disponible pour ce profil (autre mode ou autre TV : voir « Dupliquer »)"; else if (b.title.startsWith("Non dispo")) b.removeAttribute("title");
+    if (!ok) b.title = "Non disponible pour ce profil (ajoute un mode : Modifier > Combiner plusieurs modes)"; else if (b.title.startsWith("Non dispo")) b.removeAttribute("title");
   });
 }
 
 async function envoyer(tv, k) {
-  if (tv.brand === "bt") await btSend(tv.id, k);
-  else if (tv.ir) { // IR : les applis passent par le Wi-Fi si le profil a une IP (pas de code IR pour Plex, etc.)
-    if (tv.ip && peutWifi(tv, k) && (k.startsWith("app:") || irKeyFor(tv.brand, k) === null || !irDispo())) await invoke("send_key", { id: tv.id, key: k });
-    else irSend(tv.brand, k);
+  // Marche/arrêt : l'infrarouge d'abord (TV en veille = injoignable en Wi-Fi), sauf profil réglé « Wi-Fi seulement ».
+  const ordre = k === "power" && tv.power !== "wifi" ? ["ir", "wifi", "bt"] : ["wifi", "ir", "bt"];
+  let premiere = null;
+  for (const mode of ordre) {
+    if (!(mode === "wifi" ? okWifi(tv, k) : mode === "ir" ? okIr(tv, k) && (tv.power !== "wifi" || k !== "power") : okBt(tv, k))) continue;
+    if (mode === "ir" && !irDispo()) { premiere ??= new Error("Infrarouge : disponible seulement sur un téléphone avec émetteur"); continue; }
+    try {
+      if (mode === "wifi") await invoke("send_key", { id: tv.id, key: k });
+      else if (mode === "ir") irSend(irDe(tv), k);
+      else await btSend(tv.id, k);
+      return;
+    } catch (e) { premiere ??= e; }
   }
-  else if (k === "power" && tv.power === "ir") {
-    if (!irPowerWifi(tv.brand)) throw new Error("Infrarouge indisponible ici (pas d'émetteur ou marque sans code IR) : passe ce profil en Wi-Fi ou Auto");
-    irSend(`ir_${tv.brand}`, k);
-  } else if (k === "power" && tv.power !== "wifi" && irPowerWifi(tv.brand)) irSend(`ir_${tv.brand}`, k);
-  else if (!peutWifi(tv, k) && peutIrSecours(tv, k)) irSend(`ir_${tv.brand}`, k);
-  else await invoke("send_key", { id: tv.id, key: k });
+  throw premiere ?? new Error("Touche non disponible pour ce profil (ajoute un mode : Modifier > Combiner plusieurs modes)");
 }
 
 async function press(k) {
@@ -104,10 +111,17 @@ document.querySelectorAll("[data-k]").forEach((b) => {
 });
 
 // --- Saisie de texte : envoyée au champ de texte actif de la TV (Samsung, LG, Roku) ---
+/** Texte : Wi-Fi si la TV a une IP, sinon (ou en repli) Bluetooth ; l'infrarouge ne sait pas taper du texte. */
+async function texteVers(tv, t) {
+  let err = null;
+  if (tv.brand !== "bt" && tv.ip) { try { return await invoke("send_text", { id: tv.id, text: t }); } catch (e) { err = e; } }
+  if (tv.brand === "bt" || tv.bt) return btText(tv.id, t);
+  throw err ?? new Error("Pas de saisie de texte en infrarouge : ajoute le Wi-Fi (IP) ou le Bluetooth à ce profil");
+}
 async function envoyerTexte() {
   const t = $("#txt").value; if (!t) return;
   const cs = cibles(); if (!cs.length) return say("Aucune TV sélectionnée", true);
-  const res = await Promise.allSettled(cs.map((tv) => (tv.brand === "bt" ? btText(tv.id, t) : tv.ir ? Promise.reject(new Error("TV infrarouge : pas de saisie de texte (utilise Wi-Fi ou Bluetooth)")) : invoke("send_text", { id: tv.id, text: t }))));
+  const res = await Promise.allSettled(cs.map((tv) => texteVers(tv, t)));
   const ko = res.flatMap((r, i) => (r.status === "rejected" ? [`${cs[i].name} : ${r.reason?.message ?? r.reason}`] : []));
   say(ko.length ? ko.join(" — ") : "Texte envoyé (sélectionne d'abord un champ de texte sur la TV)", ko.length > 0);
   if (!ko.length) $("#txt").value = "";
@@ -206,6 +220,12 @@ function formUi() {
   $("#l-ip-t").textContent = ir ? "IP de la TV (facultatif : pour les applis Plex, Netflix…)" : "Adresse IP de la TV";
   const pinBrand = PIN_MARQUES.includes(b);
   $("#l-psk").hidden = b !== "sony" && !pinBrand; $("#pin-go").hidden = !pinBrand; $("#l-bt").hidden = b !== "bt";
+  const primWifi = !local;
+  $("#l-ir-too").hidden = !primWifi; $("#f-ir-too").disabled = !primWifi;
+  $("#l-bt-too").hidden = b === "bt"; $("#combo").hidden = b === "bt";
+  $("#l-ir-brand").hidden = !(primWifi && $("#f-ir-too").checked);
+  if (primWifi && $("#f-ir-too").checked && !$("#f-ir-brand").dataset.touche) $("#f-ir-brand").value = irMarques().some((x) => x.id === `ir_${b}`) ? `ir_${b}` : $("#f-ir-brand").value;
+  if ($("#f-bt-too").checked && b !== "bt") { $("#l-bt").hidden = false; remplirBt(); }
   $("#l-psk-t").textContent = pinBrand ? "Code affiché sur la TV" : "Clé PSK Sony";
   $("#f-psk").placeholder = pinBrand ? "d'abord « Afficher le code sur la TV », puis saisis-le ici" : "réglée dans les paramètres réseau de la TV";
   $("#f-ip").required = !local;
@@ -218,10 +238,12 @@ function remplirBt(choisi) {
 }
 $("#bt-visible").onclick = () => { btVisible(); setTimeout(() => remplirBt(), 8000); };
 brandSel.onchange = formUi;
+$("#f-ir-too").onchange = formUi; $("#f-bt-too").onchange = formUi;
+$("#f-ir-brand").onchange = () => { $("#f-ir-brand").dataset.touche = "1"; };
 
 function openForm(tv, prefill) {
   editing = tv?.id ?? null;
-  $("#form").reset(); $("#detect-res").textContent = "";
+  $("#form").reset(); $("#detect-res").textContent = ""; delete $("#f-ir-brand").dataset.touche;
   modeSel.value = prefill?.mode ?? (tv ? modeDe(tv.brand) : "wifi");
   filtrerMarques(modeSel.value, tv?.brand);
   $("#f-power").value = tv?.power ?? "auto";
@@ -230,10 +252,12 @@ function openForm(tv, prefill) {
   if (tv) {
     $("#f-name").value = tv.name; brandSel.value = tv.brand; $("#f-ip").value = tv.ip;
     $("#f-mac").value = tv.mac ?? ""; $("#f-psk").placeholder = "laisser vide = clé inchangée";
+    $("#f-ir-too").checked = !!tv.irBrand; if (tv.irBrand) { $("#f-ir-brand").value = tv.irBrand; $("#f-ir-brand").dataset.touche = "1"; }
+    $("#f-bt-too").checked = !!tv.bt && tv.brand !== "bt";
   }
   if (prefill) { $("#f-name").value = prefill.name; $("#f-ip").value = prefill.ip ?? ""; $("#f-mac").value = prefill.mac ?? ""; }
   formUi();
-  if (tv?.brand === "bt") remplirBt(btAdresse(tv.id));
+  if (tv?.brand === "bt" || tv?.bt) remplirBt(btAdresse(tv.id));
   dlg.showModal();
 }
 $("#add").onclick = () => openForm();
@@ -295,7 +319,8 @@ $("#scan-close").onclick = () => scanDlg.close();
 
 $("#form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const f = { name: $("#f-name").value, ip: $("#f-ip").value, secret: $("#f-psk").value || null, mac: $("#f-mac").value || null, power: $("#f-power").value };
+  const f = { name: $("#f-name").value, ip: $("#f-ip").value, secret: $("#f-psk").value || null, mac: $("#f-mac").value || null, power: $("#f-power").value,
+    irBrand: $("#f-ir-too").checked && !$("#f-ir-too").disabled ? $("#f-ir-brand").value : null, bt: $("#f-bt-too").checked && brandSel.value !== "bt" };
   let brand = brandSel.value;
   try {
     if (brand === "auto") { // mode auto : on identifie la marque d'après l'IP
@@ -304,9 +329,9 @@ $("#form").addEventListener("submit", async (e) => {
       brand = r.brand;
     }
     if (PIN_MARQUES.includes(brand) && $("#f-psk").value.trim()) f.secret = await invoke("code_finir", { brand, ip: f.ip, pin: $("#f-psk").value.trim() });
-    if (brand === "bt" && !$("#f-bt-dev").value) throw new Error("Choisis la TV Bluetooth dans la liste (appaire d'abord le téléphone avec elle)");
+    if ((brand === "bt" || f.bt) && !$("#f-bt-dev").value) throw new Error("Choisis la TV Bluetooth dans la liste (appaire d'abord le téléphone avec elle)");
     const t = await invoke(editing ? "update_tv" : "add_tv", { ...(editing ? { id: editing } : {}), ...f, brand });
-    if (brand === "bt") { try { localStorage.setItem(`bt:${t.id}`, $("#f-bt-dev").value); } catch {} }
+    if (brand === "bt" || f.bt) { try { localStorage.setItem(`bt:${t.id}`, $("#f-bt-dev").value); } catch {} }
     dlg.close();
     if (!f.mac && brand !== "bt" && !brand.startsWith("ir_")) invoke("learn_mac", { id: t.id }).then(() => refresh(t.id)).catch(() => {});
     await refresh(t.id);

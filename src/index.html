@@ -137,7 +137,7 @@
       </div>
     </div>
     <p id="msg" role="status"></p>
-    <footer class="foot"><span id="ver">v0.9.9</span></footer>
+    <footer class="foot"><span id="ver">v0.10.0</span></footer>
   </main>
 
   <dialog id="scan-dlg">
@@ -241,6 +241,13 @@
         <button type="button" id="bt-visible" class="b pill">Rendre le téléphone visible (2 min)</button>
         <p class="hint">Sur la TV : réglages Bluetooth &gt; ajouter un accessoire, puis choisis ce téléphone. Reviens ici et sélectionne la TV.</p>
       </div>
+      <fieldset id="combo">
+        <legend>Combiner plusieurs modes (facultatif)</legend>
+        <p class="hint">Chaque touche prend le premier mode qui la gère (Wi-Fi, puis infrarouge, puis Bluetooth), avec repli si l'envoi échoue. Les boutons d'applis (Plex, Netflix...) passent par le Wi-Fi.</p>
+        <label class="switch" id="l-ir-too"><input type="checkbox" id="f-ir-too" /> Ajouter l'infrarouge (émetteur du téléphone)</label>
+        <label id="l-ir-brand" hidden>Marque infrarouge <select id="f-ir-brand"></select></label>
+        <label class="switch" id="l-bt-too"><input type="checkbox" id="f-bt-too" /> Ajouter le Bluetooth</label>
+      </fieldset>
       <label id="l-power">Marche / arrêt de ce profil
         <select id="f-power">
           <option value="auto" selected>Auto (infrarouge si le téléphone en a un, sinon Wi-Fi + réveil réseau)</option>

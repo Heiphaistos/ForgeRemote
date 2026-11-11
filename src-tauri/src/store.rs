@@ -15,6 +15,12 @@ pub struct Tv {
     /// Marche/arrêt d'un profil Wi-Fi : "auto" (infrarouge si le téléphone en a un), "wifi" ou "ir".
     #[serde(default = "power_auto")]
     pub power: String,
+    /// Mode infrarouge ajouté à un profil Wi-Fi (« ir_samsung ») : le profil combine plusieurs modes.
+    #[serde(default)]
+    pub ir_brand: Option<String>,
+    /// Bluetooth ajouté au profil (l'appareil est mémorisé côté interface).
+    #[serde(default)]
+    pub bt: bool,
 }
 
 fn power_auto() -> String { "auto".into() }

@@ -199,3 +199,7 @@
 [data-theme="sunset2"] { --bg: #1c0f07; --body: #a35a2c; --btn: #c67a45; --btn-h: #dd9059; --txt: #2a1204; --ink: #2a1204; --acc: #6e2a0a; --on-acc: #fff1e0; --page-bg: linear-gradient(180deg, #d9873f, #5a2a10 60%, #1c0f07); }
 [data-theme="galaxie"] { --bg: #05030f; --body: #1b1040; --btn: #2c1a66; --btn-h: #3d2590; --txt: #efe9ff; --acc: #ff6bd6; --on-acc: #2a0222; --page-bg: radial-gradient(50% 40% at 15% 10%, #7a3cff88, transparent 60%), radial-gradient(50% 40% at 90% 85%, #ff6bd677, transparent 60%), #05030f; }
 [data-theme="steel"] { --bg: #070b10; --body: #27394d; --btn: #385068; --btn-h: #47647f; --txt: #eaf3fb; --acc: #6fb7ff; --on-acc: #0a1b2c; --page-bg: linear-gradient(160deg, #2c4259, #070b10 75%); }
+
+/* Combiner plusieurs modes (formulaire de profil) */
+#combo { border: 1px solid color-mix(in srgb, var(--txt) 22%, transparent); border-radius: 14px; padding: 8px 12px; margin: 10px 0; }
+#combo legend { font-weight: 700; font-size: 13px; padding: 0 6px; }

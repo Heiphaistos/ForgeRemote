@@ -51,6 +51,12 @@ avant installation silencieuse (Windows). Android/Linux : lien vers la release.
 - Noms de TV décodés (`65&quot;` -> `65"`), MAC lue dans la table ARP puis l'API de la TV.
 - Correctif : le bandeau « Installer » ne s'affiche plus en permanence.
 
+## Nouveautés 0.10.0
+
+- **Combiner plusieurs modes dans un même profil** : Wi-Fi (marque + IP) + infrarouge (émetteur du téléphone) + Bluetooth. Chaque touche prend le premier mode qui la gère (Wi-Fi, puis infrarouge, puis Bluetooth ; Marche/arrêt : infrarouge d'abord) et se replie sur le suivant si l'envoi échoue. Réglage : Modifier > « Combiner plusieurs modes ».
+- Boutons d'applis : Wi-Fi (toutes les applis) ; infrarouge (Netflix, Prime, Disney+, YouTube quand la télécommande de la marque a ce bouton) ; le Bluetooth HID ne sait pas lancer une appli par son nom. Un profil combiné Wi-Fi + IR + Bluetooth couvre donc tout.
+- Saisie de texte : Wi-Fi, repli Bluetooth (l'infrarouge ne tape pas de texte).
+
 ## Nouveautés 0.9.9
 
 - Samsung récents : le lancement d'une appli ne dépasse plus le délai (le démarrage prend 3 à 5 s côté TV) ; vérifié sur une vraie QN70F : Plex, Netflix, Prime Video et YouTube se lancent en ~0,5 s côté appli, et la liste de ses applications est lue.
