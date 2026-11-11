@@ -72,10 +72,11 @@ const K: &[Row] = &[
     ("hdmi4", ["", "", "NRC_HDMI4-ONOFF", "InputHDMI4", "", "", "", "", "", ""]),
 ];
 
-pub const BRANDS: [&str; 11] = ["samsung", "lg", "panasonic", "roku", "philips", "sony", "vizio", "xiaomi", "lgnetcast", "firetv", "androidtv"];
+pub const BRANDS: [&str; 12] = ["samsung", "lg", "panasonic", "roku", "philips", "sony", "vizio", "xiaomi", "lgnetcast", "firetv", "androidtv", "samsunglegacy"];
 
 /// Identifiants de touches gérés par une marque Wi-Fi (index dans BRANDS).
 pub fn supported(brand: usize) -> Vec<&'static str> {
+    if brand == 11 { return supported(0).into_iter().filter(|i| !i.starts_with("hdmi")).collect(); } // mêmes KEY_ que Samsung
     if brand == 10 { return K.iter().map(|k| k.0).filter(|id| crate::androidtv::touche_android(id).is_some()).collect(); }
     K.iter().filter(|k| k.1.get(brand).is_some_and(|c| !c.is_empty())).map(|k| k.0).collect()
 }
@@ -95,6 +96,7 @@ pub fn code(id: &str, brand: usize) -> Result<String, String> {
         return if brand == 1 && !s.is_empty() && s.len() <= 40 && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') { Ok(format!("SRC:{s}")) } else { Err("entrée non gérée par cette marque".into()) };
     }
     if brand == 10 { return crate::androidtv::touche_android(id).map(|c| format!("KEY:{c}")).ok_or_else(|| format!("touche « {id} » non gérée par Android TV")); }
+    let brand = if brand == 11 { 0 } else { brand };
     let e = K.iter().find(|k| k.0 == id).ok_or(format!("touche inconnue : {id}"))?;
     match e.1.get(brand) {
         Some(c) if !c.is_empty() => Ok(c.to_string()),

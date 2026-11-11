@@ -51,6 +51,14 @@ avant installation silencieuse (Windows). Android/Linux : lien vers la release.
 - Noms de TV décodés (`65&quot;` -> `65"`), MAC lue dans la table ARP puis l'API de la TV.
 - Correctif : le bandeau « Installer » ne s'affiche plus en permanence.
 
+## Nouveautés 0.9.8
+
+- PC, latence : la session avec la TV (Samsung, LG) reste ouverte entre deux touches (plus de TLS + authentification à chaque appui : de ~90 ms à ~0 ms mesurés contre une fausse TV), et la recherche de l'adresse MAC ne ralentit plus les touches ordinaires.
+- Samsung récents (QN70F, 2025...) : lancement des applis (Plex, Netflix, YouTube, Prime, Disney+, Spotify, Apple TV, Rakuten...) par l'API REST de la TV (vérifiée sur une vraie QN70F : identifiants Netflix et Prime corrigés), et « Lire les applis de la TV » fonctionne même quand la TV ne donne plus sa liste.
+- Anciens téléviseurs : Samsung 2008-2013 (protocole TCP 55000), Samsung 2014-2015 (WebSocket 8001 en repli), Philips JointSpace anciennes versions (v5 puis v1 en repli).
+- Android : installation de la mise à jour par PackageInstaller avec messages d'erreur précis (Play Protect, signature, espace...), et attente de la confirmation jusqu'à 4 min.
+- Interface : les cinq boutons Modifier/Ajouter/Dupliquer/Retirer/Groupe tiennent sur une seule ligne de 320 à 412 px de large.
+
 ## Nouveautés 0.9.7
 
 - Android TV / Google TV (protocole Remote v2 : appairage TLS sur 6467 avec code à 6 caractères hexadécimaux, télécommande sur 6466, certificat client RSA généré une fois). Testé avec une fausse TV en vrai TLS (appairage, secret, ping, touche) ; jamais sur une vraie TV.

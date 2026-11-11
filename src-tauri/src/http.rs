@@ -51,9 +51,14 @@ pub async fn roku(ip: &str, key: &str) -> Result<(), String> {
     verdict(client()?.post(format!("http://{ip}:8060/keypress/{key}")).send().await)
 }
 
-/// Philips : POST http://ip:1925/6/input/key {"key": ...}
+/// Philips JointSpace : POST http://ip:1925/<version>/input/key {"key": ...} ; version 6 (Android TV 2015+), puis 5 (2014), puis 1 (2009-2012).
 pub async fn philips(ip: &str, key: &str) -> Result<(), String> {
-    verdict(client()?.post(format!("http://{ip}:1925/6/input/key")).json(&serde_json::json!({"key": key})).send().await)
+    let c = client()?;
+    let mut derniere = String::new();
+    for v in [6, 5, 1] {
+        match verdict(c.post(format!("http://{ip}:1925/{v}/input/key")).json(&serde_json::json!({"key": key})).send().await) { Ok(()) => return Ok(()), Err(e) => derniere = e }
+    }
+    Err(derniere)
 }
 
 #[cfg(test)]

@@ -1,11 +1,17 @@
 package org.heiphaistos.forgeremote
 
 import android.app.Activity
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.PackageInstaller
+import android.os.Build
+import androidx.core.content.ContextCompat
 import android.net.Uri
 import android.provider.Settings
 import android.webkit.JavascriptInterface
-import androidx.core.content.FileProvider
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -19,6 +25,40 @@ import java.security.MessageDigest
  */
 class UpdBridge(private val a: Activity) {
   @Volatile private var st = ""
+
+  companion object { const val ACTION = "org.heiphaistos.forgeremote.INSTALL_RESULT" }
+
+  /** Résultat de l'installeur Android : demande de confirmation, succès, ou échec expliqué (jamais un silence). */
+  private val resultat = object : BroadcastReceiver() {
+    override fun onReceive(c: Context, i: Intent) {
+      val code = i.getIntExtra(PackageInstaller.EXTRA_STATUS, -999)
+      val msg = i.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: ""
+      when (code) {
+        PackageInstaller.STATUS_PENDING_USER_ACTION -> {
+          @Suppress("DEPRECATION")
+          val conf = if (Build.VERSION.SDK_INT >= 33) i.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java) else i.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
+          if (conf == null) st = "err:l'installeur Android n'a pas fourni son écran de confirmation" else { st = "ok"; a.startActivity(conf.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        }
+        PackageInstaller.STATUS_SUCCESS -> st = "fini"
+        else -> st = "err:" + explique(code, msg)
+      }
+    }
+  }
+
+  init { ContextCompat.registerReceiver(a, resultat, IntentFilter(ACTION), ContextCompat.RECEIVER_NOT_EXPORTED) }
+
+  private fun explique(code: Int, msg: String): String {
+    val base = when (code) {
+      PackageInstaller.STATUS_FAILURE_ABORTED -> "installation annulée (ou refusée dans l'avertissement Play Protect : choisis « Installer quand même »)"
+      PackageInstaller.STATUS_FAILURE_BLOCKED -> "installation bloquée par Android ou Play Protect"
+      PackageInstaller.STATUS_FAILURE_CONFLICT -> "conflit avec la version installée (signée avec une autre clé ?) : désinstalle ForgeRemote puis installe l'APK de la release"
+      PackageInstaller.STATUS_FAILURE_INCOMPATIBLE -> "APK incompatible avec ce téléphone"
+      PackageInstaller.STATUS_FAILURE_INVALID -> "APK invalide ou corrompu"
+      PackageInstaller.STATUS_FAILURE_STORAGE -> "espace insuffisant sur le téléphone"
+      else -> "échec de l'installation (code $code)"
+    }
+    return if (msg.isNotEmpty()) "$base [$msg]" else base
+  }
 
   /** APK déjà téléchargé et vérifié, en attente de l'autorisation « sources inconnues ». */
   @Volatile private var pending: File? = null
@@ -73,10 +113,18 @@ class UpdBridge(private val a: Activity) {
     if (a.packageManager.canRequestPackageInstalls()) { pending = null; a.runOnUiThread { ouvrir(f) } }
   }
 
+  /** Installation par session PackageInstaller : Android affiche sa confirmation, puis renvoie le résultat à `resultat`. */
   private fun ouvrir(f: File) {
-    val uri = FileProvider.getUriForFile(a, a.packageName + ".fileprovider", f)
-    a.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
-      .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK))
-    st = "ok"
+    try {
+      val pi = a.packageManager.packageInstaller
+      val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply { setSize(f.length()) }
+      val id = pi.createSession(params)
+      pi.openSession(id).use { sess ->
+        f.inputStream().use { i -> sess.openWrite("forgeremote.apk", 0, f.length()).use { o -> i.copyTo(o); sess.fsync(o) } }
+        val pend = PendingIntent.getBroadcast(a, id, Intent(ACTION).setPackage(a.packageName), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
+        sess.commit(pend.intentSender)
+      }
+      st = "inst"
+    } catch (e: Exception) { st = "err:" + (e.message ?: e.javaClass.simpleName) }
   }
 }

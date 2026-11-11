@@ -23,8 +23,26 @@ async fn lire(s: &mut Ws, id: &str, secs: u64) -> Result<Value, String> {
     .map_err(|_| "pas de confirmation sur la TV".to_string())?
 }
 
+/// Sessions gardées ouvertes (ip -> socket principal + socket pointeur, instant) : une touche ne refait plus l'enregistrement ni l'ouverture du pointeur.
+static POOL: std::sync::Mutex<Option<std::collections::HashMap<String, (Ws, Ws, std::time::Instant)>>> = std::sync::Mutex::new(None);
+
+fn rendre(ip: &str) -> Option<(Ws, Ws)> {
+    let (s, b, t) = POOL.lock().unwrap().as_mut()?.remove(ip)?;
+    (t.elapsed() < Duration::from_secs(25)).then_some((s, b))
+}
+fn garder(ip: &str, s: Ws, b: Ws) { POOL.lock().unwrap().get_or_insert_with(Default::default).insert(ip.to_string(), (s, b, std::time::Instant::now())); }
+
 /// key=None : appairage seul. Retourne la clé client (nouvelle ou renouvelée).
 pub async fn send(ip: &str, token: Option<&str>, key: Option<&str>) -> Result<Option<String>, String> {
+    let bouton = key.filter(|k| !k.starts_with("TEXT:") && !k.starts_with("APP:") && !k.starts_with("SRC:") && *k != "POWER");
+    if let Some(k) = bouton {
+        if let Some((s, mut b)) = rendre(ip) {
+            if b.send(Message::text(format!("type:button
+name:{k}
+
+"))).await.is_ok() { garder(ip, s, b); return Ok(None); }
+        }
+    }
     let mut s = match ws(&format!("wss://{ip}:3001"), 4).await {
         Ok(s) => s,
         Err(_) => ws(&format!("ws://{ip}:3000"), 4).await?, // anciens webOS
@@ -68,8 +86,8 @@ pub async fn send(ip: &str, token: Option<&str>, key: Option<&str>) -> Result<Op
             if !(path.starts_with("ws://") || path.starts_with("wss://")) || hote != Some(ip) { return Err("socket pointeur refusé (hôte inattendu)".into()); }
             let mut b = ws(path, 4).await?;
             b.send(Message::text(format!("type:button\nname:{k}\n\n"))).await.map_err(|e| e.to_string())?;
-            tokio::time::sleep(Duration::from_millis(120)).await;
-            let _ = b.close(None).await;
+            garder(ip, s, b);
+            return Ok(nouveau);
         }
     }
     let _ = s.close(None).await;

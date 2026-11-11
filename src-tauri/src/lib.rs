@@ -3,6 +3,7 @@ mod detect;
 mod extra;
 mod http;
 mod keys;
+mod legacy;
 mod lg;
 mod net;
 mod panasonic;
@@ -142,7 +143,8 @@ async fn envoyer(st: &St<'_>, id: &str, key: Option<&str>) -> Result<(), String>
     let code = code.as_deref();
     let tok = tv.token.as_deref();
     // MAC apprise automatiquement tant que la TV est allumée : permet de la réveiller plus tard sans rien saisir.
-    let mac = match &tv.mac { Some(m) => Some(m.clone()), None => apprendre_mac(st, id, base(&tv.brand), &tv.ip).await };
+    // La MAC ne sert qu'au réveil : on ne la cherche (arp, requête API) que pour Marche/arrêt, jamais sur une touche ordinaire (latence).
+    let mac = match (&tv.mac, key == Some("power")) { (Some(m), _) => Some(m.clone()), (None, true) => apprendre_mac(st, id, base(&tv.brand), &tv.ip).await, (None, false) => None };
     // Marche/arrêt avec MAC connue : on réveille d'abord (une TV en veille n'écoute plus le réseau).
     let reveil = key == Some("power") && match &mac { Some(m) => wol::wake(m, &tv.ip).await.is_ok(), None => false };
     let res: Result<Option<String>, String> = match (b, code) {
@@ -157,6 +159,7 @@ async fn envoyer(st: &St<'_>, id: &str, key: Option<&str>) -> Result<(), String>
         (8, Some(c)) => extra::netcast(&tv.ip, tok, c).await.map(|_| None),
         (9, Some(c)) => extra::firetv(&tv.ip, tok, c).await.map(|_| None),
         (10, Some(c)) => androidtv::envoyer(&tv.ip, c).await.map(|_| None),
+        (11, c) => legacy::envoyer(&tv.ip, c).await.map(|_| None),
         (_, Some(c)) => sony::send(&tv.ip, tok, c).await.map(|_| None),
     };
     let nouveau = match res {

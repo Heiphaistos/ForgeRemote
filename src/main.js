@@ -348,13 +348,16 @@ async function installerAndroid(u) {
   if (!u.apk || !u.sums) throw new Error(`APK absent de la release : ${u.page}`);
   const somme = await invoke("somme_update", { sums: u.sums, name: u.apk.name }); // signature Ed25519 vérifiée côté Rust
   window.ForgeUpd.install(u.apk.url, u.apk.name, somme);
-  for (;;) {
+  let confirme = false;
+  for (let n = 0; n < 400; n++) { // ~4,5 min : assez pour lire l'avertissement Play Protect
     await new Promise((r) => setTimeout(r, 700));
     const st = window.ForgeUpd.status();
     if (st === "perm") say("Autorise « Installer des applis inconnues » pour ForgeRemote, puis reviens : l'installation reprendra seule.");
-    else if (st === "ok") return say("Confirme l'installation sur l'écran Android.");
+    else if (st === "ok" && !confirme) { confirme = true; say("Confirme l'installation sur l'écran Android (si Play Protect avertit : « Installer quand même »)."); }
+    else if (st === "fini") return say("Mise à jour installée.");
     else if (st.startsWith("err:")) throw new Error(st.slice(4));
   }
+  throw new Error("pas de réponse de l'installeur Android : ouvre la page de la release et installe l'APK à la main");
 }
 async function checkUpdate(manuel) {
   try {
