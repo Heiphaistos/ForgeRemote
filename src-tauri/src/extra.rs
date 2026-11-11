@@ -121,11 +121,19 @@ pub async fn vizio_vivante(ip: &str) -> bool {
 // ---------- Fire TV : API locale HTTPS 8080 (appairage par code, en-têtes X-Api-Key / X-Client-Token) ----------
 const CLE_API_FIRE: &str = "0987654321";
 
-pub fn firetv_chemin(code: &str) -> Result<String, String> {
-    let ok_nom = |n: &str| !n.is_empty() && n.len() <= 24 && n.chars().all(|c| c.is_ascii_lowercase() || c == '_');
+/// (chemin, corps JSON) d'une commande Fire TV — noms d'actions et corps relevés dans la table de l'appli Roku
+/// (dpad_*, select, home, back, menu, sleep, volume_up/down, mute ; media : play, pause, scan {direction} ; chiffres : texte).
+pub fn firetv_requete(code: &str) -> Result<(String, Option<String>), String> {
+    let nom = |n: &str| !n.is_empty() && n.len() <= 24 && n.chars().all(|c| c.is_ascii_lowercase() || c == '_');
+    if let Some(d) = code.strip_prefix("scan:") {
+        return if d == "forward" || d == "back" { Ok(("/v1/media?action=scan".into(), Some(format!(r#"{{"direction":"{d}","keyAction":{{"keyActionType":"keyDownUp"}}}}"#)))) } else { Err("direction Fire TV invalide".into()) };
+    }
+    if let Some(t) = code.strip_prefix("text:") {
+        return if t.len() == 1 && t.chars().all(|c| c.is_ascii_digit()) { Ok(("/v1/FireTV/text".into(), Some(format!(r#"{{"text":"{t}"}}"#)))) } else { Err("texte Fire TV invalide".into()) };
+    }
     match code.strip_prefix("media:") {
-        Some(a) if ok_nom(a) => Ok(format!("/v1/media?action={a}")),
-        None if ok_nom(code) => Ok(format!("/v1/FireTV?action={code}")),
+        Some(a) if nom(a) => Ok((format!("/v1/media?action={a}"), None)),
+        None if nom(code) => Ok((format!("/v1/FireTV?action={code}"), None)),
         _ => Err("action Fire TV invalide".into()),
     }
 }
@@ -142,12 +150,15 @@ pub async fn firetv_finir(ip: &str, pin: &str) -> Result<String, String> {
 
 pub async fn firetv(ip: &str, jeton: Option<&str>, code: &str) -> Result<(), String> {
     let t = jeton.filter(|t| !t.is_empty()).ok_or("TV non appairée : « Afficher le code sur la TV » puis saisis-le dans le profil")?;
-    ok(client()?.post(format!("https://{ip}:8080{}", firetv_chemin(code)?)).header("X-Api-Key", CLE_API_FIRE).header("X-Client-Token", t).send().await).map(|_| ())
+    let (chemin, corps) = firetv_requete(code)?;
+    let mut r = client()?.post(format!("https://{ip}:8080{chemin}")).header("X-Api-Key", CLE_API_FIRE).header("X-Client-Token", t);
+    if let Some(c) = corps { r = r.header("Content-Type", "application/json").body(c); }
+    ok(r.send().await).map(|_| ())
 }
 
 // ---------- Appairage par code (Vizio, LG Netcast, Fire TV) ----------
 pub async fn code_afficher(brand: &str, ip: &str) -> Result<(), String> {
-    match brand { "vizio" => vizio_afficher(ip).await, "lgnetcast" => netcast_afficher(ip).await, "firetv" => firetv_afficher(ip).await, _ => Err("cette marque ne demande pas de code".into()) }
+    match brand { "vizio" => vizio_afficher(ip).await, "lgnetcast" => netcast_afficher(ip).await, "firetv" => firetv_afficher(ip).await, "androidtv" => crate::androidtv::appairage_debut(ip).await, _ => Err("cette marque ne demande pas de code".into()) }
 }
 
 /// Jeton à enregistrer dans le profil (Vizio, Fire TV) ; pour LG Netcast, le code lui-même sert de clé.
@@ -155,6 +166,7 @@ pub async fn code_finir(brand: &str, ip: &str, pin: &str) -> Result<String, Stri
     match brand {
         "vizio" => vizio_finir(ip, pin).await,
         "firetv" => firetv_finir(ip, pin).await,
+        "androidtv" => crate::androidtv::appairage_fin(ip, pin).await.map(|_| "appaire".to_string()),
         "lgnetcast" if !pin.is_empty() && pin.len() <= 12 && pin.chars().all(|c| c.is_ascii_alphanumeric()) => Ok(pin.to_string()),
         _ => Err("code invalide".into()),
     }
@@ -206,8 +218,11 @@ mod tests {
     fn formats_vizio_et_firetv() {
         assert_eq!(vizio_touche("5:1").unwrap(), json!({"KEYLIST":[{"CODESET":5,"CODE":1,"ACTION":"KEYPRESS"}]}));
         assert!(vizio_touche("x").is_err() && vizio_touche("5:").is_err());
-        assert_eq!(firetv_chemin("dpad_up").unwrap(), "/v1/FireTV?action=dpad_up");
-        assert_eq!(firetv_chemin("media:play").unwrap(), "/v1/media?action=play");
-        assert!(firetv_chemin("../x").is_err() && firetv_chemin("a&b=1").is_err() && firetv_chemin("media:").is_err());
+        assert_eq!(firetv_requete("dpad_up").unwrap(), ("/v1/FireTV?action=dpad_up".to_string(), None));
+        assert_eq!(firetv_requete("media:play").unwrap().0, "/v1/media?action=play");
+        let (c, b) = firetv_requete("scan:forward").unwrap();
+        assert_eq!((c.as_str(), b.as_deref()), ("/v1/media?action=scan", Some(r#"{"direction":"forward","keyAction":{"keyActionType":"keyDownUp"}}"#)));
+        assert_eq!(firetv_requete("text:7").unwrap(), ("/v1/FireTV/text".to_string(), Some(r#"{"text":"7"}"#.to_string())));
+        assert!(firetv_requete("../x").is_err() && firetv_requete("a&b=1").is_err() && firetv_requete("media:").is_err() && firetv_requete("text:\"}").is_err());
     }
 }

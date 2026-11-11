@@ -187,7 +187,7 @@ addEventListener("keydown", (e) => {
 });
 
 // --- Formulaire : ajout / modification ---
-const PIN_MARQUES = ["vizio", "lgnetcast", "firetv"]; // appairage par code affiché sur la TV
+const PIN_MARQUES = ["vizio", "lgnetcast", "firetv", "androidtv"]; // appairage par code affiché sur la TV
 const GROUPES = [...brandSel.children];
 const modeSel = $("#f-mode");
 const modeDe = (b) => (b === "bt" ? "bt" : b.startsWith("ir_") ? "ir" : "wifi");

@@ -1,3 +1,4 @@
+mod androidtv;
 mod detect;
 mod extra;
 mod http;
@@ -49,7 +50,7 @@ fn wifi_idx(t: &Tv) -> Result<usize, String> {
 
 /// Jamais le jeton ni la clé vers l'interface.
 fn vue(t: &Tv) -> Value {
-    json!({"id":t.id,"name":t.name,"brand":t.brand,"ip":t.ip,"paired":t.token.is_some(),"ir":is_local(&t.brand),"wol":t.mac.is_some(),"mac":t.mac,"power":t.power,"keys":wifi_idx(t).map(keys::supported).unwrap_or_default(),"apps":wifi_idx(t).is_ok_and(|b| matches!(b, 0 | 1 | 3))})
+    json!({"id":t.id,"name":t.name,"brand":t.brand,"ip":t.ip,"paired":t.token.is_some(),"ir":is_local(&t.brand),"wol":t.mac.is_some(),"mac":t.mac,"power":t.power,"keys":wifi_idx(t).map(keys::supported).unwrap_or_default(),"apps":wifi_idx(t).is_ok_and(|b| matches!(b, 0 | 1 | 3 | 10))})
 }
 
 #[cfg(test)]
@@ -155,6 +156,7 @@ async fn envoyer(st: &St<'_>, id: &str, key: Option<&str>) -> Result<(), String>
         (7, Some(c)) => extra::xiaomi(&tv.ip, c).await.map(|_| None),
         (8, Some(c)) => extra::netcast(&tv.ip, tok, c).await.map(|_| None),
         (9, Some(c)) => extra::firetv(&tv.ip, tok, c).await.map(|_| None),
+        (10, Some(c)) => androidtv::envoyer(&tv.ip, c).await.map(|_| None),
         (_, Some(c)) => sony::send(&tv.ip, tok, c).await.map(|_| None),
     };
     let nouveau = match res {
@@ -270,6 +272,7 @@ pub fn run() {
             let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
             update::nettoyer();
             net::init(dir.clone());
+            androidtv::init(dir.clone());
             app.manage(Mutex::new(Store::load(dir)));
             Ok(())
         })

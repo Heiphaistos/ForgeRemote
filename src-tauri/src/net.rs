@@ -36,10 +36,16 @@ fn sauver(m: &HashMap<String, String>) {
     }
 }
 
+/// Empreinte (SHA-256 du certificat DER) d'une connexion TLS hors WebSocket (Android TV) : mémorisée au premier contact, refusée si elle change.
+pub fn epingler(cle: &str, der: &[u8]) -> Result<(), String> {
+    let fp: String = Sha256::digest(der).iter().map(|b| format!("{b:02x}")).collect();
+    controler(cle, &fp).map_err(|_| "Le certificat de la TV a changé (TV réinitialisée, ou autre appareil à cette adresse ?). Si c'est bien ta TV : Modifier > Enregistrer pour oublier l'ancienne empreinte.".to_string())
+}
+
 /// Oublie l'empreinte d'une TV (certificat légitimement changé : réinitialisation, mise à jour majeure).
 pub fn oublier(ip: &str) {
     let mut g = PINS.lock().unwrap();
-    if let Some(m) = g.as_mut() { if m.remove(ip).is_some() { sauver(m); } }
+    if let Some(m) = g.as_mut() { let a = m.remove(ip).is_some(); let b = m.remove(&format!("{ip}:atv")).is_some(); if a || b { sauver(m); } }
 }
 
 /// Premier certificat vu pour cet hôte : mémorisé ; ensuite il doit être identique.

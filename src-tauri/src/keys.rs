@@ -2,17 +2,17 @@
 //! Chaîne vide = touche absente de la marque (refusée proprement).
 type Row = (&'static str, [&'static str; 10]);
 const K: &[Row] = &[
-    ("power", ["KEY_POWER", "POWER", "NRC_POWER-ONOFF", "Power", "Standby", "Power", "11:2", "power", "1", ""]),
-    ("0", ["KEY_0", "0", "NRC_D0-ONOFF", "Lit_0", "Digit0", "Num0", "", "", "2", ""]),
-    ("1", ["KEY_1", "1", "NRC_D1-ONOFF", "Lit_1", "Digit1", "Num1", "", "", "3", ""]),
-    ("2", ["KEY_2", "2", "NRC_D2-ONOFF", "Lit_2", "Digit2", "Num2", "", "", "4", ""]),
-    ("3", ["KEY_3", "3", "NRC_D3-ONOFF", "Lit_3", "Digit3", "Num3", "", "", "5", ""]),
-    ("4", ["KEY_4", "4", "NRC_D4-ONOFF", "Lit_4", "Digit4", "Num4", "", "", "6", ""]),
-    ("5", ["KEY_5", "5", "NRC_D5-ONOFF", "Lit_5", "Digit5", "Num5", "", "", "7", ""]),
-    ("6", ["KEY_6", "6", "NRC_D6-ONOFF", "Lit_6", "Digit6", "Num6", "", "", "8", ""]),
-    ("7", ["KEY_7", "7", "NRC_D7-ONOFF", "Lit_7", "Digit7", "Num7", "", "", "9", ""]),
-    ("8", ["KEY_8", "8", "NRC_D8-ONOFF", "Lit_8", "Digit8", "Num8", "", "", "10", ""]),
-    ("9", ["KEY_9", "9", "NRC_D9-ONOFF", "Lit_9", "Digit9", "Num9", "", "", "11", ""]),
+    ("power", ["KEY_POWER", "POWER", "NRC_POWER-ONOFF", "Power", "Standby", "Power", "11:2", "power", "1", "sleep"]),
+    ("0", ["KEY_0", "0", "NRC_D0-ONOFF", "Lit_0", "Digit0", "Num0", "", "", "2", "text:0"]),
+    ("1", ["KEY_1", "1", "NRC_D1-ONOFF", "Lit_1", "Digit1", "Num1", "", "", "3", "text:1"]),
+    ("2", ["KEY_2", "2", "NRC_D2-ONOFF", "Lit_2", "Digit2", "Num2", "", "", "4", "text:2"]),
+    ("3", ["KEY_3", "3", "NRC_D3-ONOFF", "Lit_3", "Digit3", "Num3", "", "", "5", "text:3"]),
+    ("4", ["KEY_4", "4", "NRC_D4-ONOFF", "Lit_4", "Digit4", "Num4", "", "", "6", "text:4"]),
+    ("5", ["KEY_5", "5", "NRC_D5-ONOFF", "Lit_5", "Digit5", "Num5", "", "", "7", "text:5"]),
+    ("6", ["KEY_6", "6", "NRC_D6-ONOFF", "Lit_6", "Digit6", "Num6", "", "", "8", "text:6"]),
+    ("7", ["KEY_7", "7", "NRC_D7-ONOFF", "Lit_7", "Digit7", "Num7", "", "", "9", "text:7"]),
+    ("8", ["KEY_8", "8", "NRC_D8-ONOFF", "Lit_8", "Digit8", "Num8", "", "", "10", "text:8"]),
+    ("9", ["KEY_9", "9", "NRC_D9-ONOFF", "Lit_9", "Digit9", "Num9", "", "", "11", "text:9"]),
     ("up", ["KEY_UP", "UP", "NRC_UP-ONOFF", "Up", "CursorUp", "Up", "3:8", "up", "12", "dpad_up"]),
     ("down", ["KEY_DOWN", "DOWN", "NRC_DOWN-ONOFF", "Down", "CursorDown", "Down", "3:0", "down", "13", "dpad_down"]),
     ("left", ["KEY_LEFT", "LEFT", "NRC_LEFT-ONOFF", "Left", "CursorLeft", "Left", "3:1", "left", "14", "dpad_left"]),
@@ -22,9 +22,9 @@ const K: &[Row] = &[
     ("home", ["KEY_HOME", "HOME", "NRC_HOME-ONOFF", "Home", "Home", "Home", "4:15", "home", "21", "home"]),
     ("menu", ["KEY_MENU", "MENU", "NRC_MENU-ONOFF", "", "Options", "Options", "4:8", "menu", "22", "menu"]),
     ("exit", ["KEY_EXIT", "EXIT", "NRC_CANCEL-ONOFF", "", "", "Exit", "9:0", "", "412", ""]),
-    ("vol_up", ["KEY_VOLUP", "VOLUMEUP", "NRC_VOLUP-ONOFF", "VolumeUp", "VolumeUp", "VolumeUp", "5:1", "volumeup", "24", ""]),
-    ("vol_down", ["KEY_VOLDOWN", "VOLUMEDOWN", "NRC_VOLDOWN-ONOFF", "VolumeDown", "VolumeDown", "VolumeDown", "5:0", "volumedown", "25", ""]),
-    ("mute", ["KEY_MUTE", "MUTE", "NRC_MUTE-ONOFF", "VolumeMute", "Mute", "Mute", "5:4", "", "26", ""]),
+    ("vol_up", ["KEY_VOLUP", "VOLUMEUP", "NRC_VOLUP-ONOFF", "VolumeUp", "VolumeUp", "VolumeUp", "5:1", "volumeup", "24", "volume_up"]),
+    ("vol_down", ["KEY_VOLDOWN", "VOLUMEDOWN", "NRC_VOLDOWN-ONOFF", "VolumeDown", "VolumeDown", "VolumeDown", "5:0", "volumedown", "25", "volume_down"]),
+    ("mute", ["KEY_MUTE", "MUTE", "NRC_MUTE-ONOFF", "VolumeMute", "Mute", "Mute", "5:4", "", "26", "mute"]),
     ("ch_up", ["KEY_CHUP", "CHANNELUP", "NRC_CH_UP-ONOFF", "ChannelUp", "ChannelStepUp", "ChannelUp", "8:1", "", "27", ""]),
     ("ch_down", ["KEY_CHDOWN", "CHANNELDOWN", "NRC_CH_DOWN-ONOFF", "ChannelDown", "ChannelStepDown", "ChannelDown", "8:0", "", "28", ""]),
     ("source", ["KEY_SOURCE", "", "NRC_CHG_INPUT-ONOFF", "", "Source", "Input", "7:1", "", "47", ""]),
@@ -33,8 +33,8 @@ const K: &[Row] = &[
     ("play", ["KEY_PLAY", "PLAY", "NRC_PLAY-ONOFF", "Play", "Play", "Play", "2:3", "", "33", "media:play"]),
     ("pause", ["KEY_PAUSE", "PAUSE", "NRC_PAUSE-ONOFF", "Play", "Pause", "Pause", "2:2", "", "34", "media:pause"]),
     ("stop", ["KEY_STOP", "STOP", "NRC_STOP-ONOFF", "", "Stop", "Stop", "", "", "35", ""]),
-    ("rew", ["KEY_REWIND", "REWIND", "NRC_REW-ONOFF", "Rev", "Rewind", "Rewind", "2:1", "", "37", "media:scan_back"]),
-    ("ff", ["KEY_FF", "FASTFORWARD", "NRC_FF-ONOFF", "Fwd", "FastForward", "Forward", "2:0", "", "36", "media:scan_forward"]),
+    ("rew", ["KEY_REWIND", "REWIND", "NRC_REW-ONOFF", "Rev", "Rewind", "Rewind", "2:1", "", "37", "scan:back"]),
+    ("ff", ["KEY_FF", "FASTFORWARD", "NRC_FF-ONOFF", "Fwd", "FastForward", "Forward", "2:0", "", "36", "scan:forward"]),
     ("red", ["KEY_RED", "RED", "NRC_RED-ONOFF", "", "RedColour", "Red", "", "", "31", ""]),
     ("green", ["KEY_GREEN", "GREEN", "NRC_GREEN-ONOFF", "", "GreenColour", "Green", "", "", "30", ""]),
     ("yellow", ["KEY_YELLOW", "YELLOW", "NRC_YELLOW-ONOFF", "", "YellowColour", "Yellow", "", "", "32", ""]),
@@ -72,10 +72,11 @@ const K: &[Row] = &[
     ("hdmi4", ["", "", "NRC_HDMI4-ONOFF", "InputHDMI4", "", "", "", "", "", ""]),
 ];
 
-pub const BRANDS: [&str; 10] = ["samsung", "lg", "panasonic", "roku", "philips", "sony", "vizio", "xiaomi", "lgnetcast", "firetv"];
+pub const BRANDS: [&str; 11] = ["samsung", "lg", "panasonic", "roku", "philips", "sony", "vizio", "xiaomi", "lgnetcast", "firetv", "androidtv"];
 
 /// Identifiants de touches gérés par une marque Wi-Fi (index dans BRANDS).
 pub fn supported(brand: usize) -> Vec<&'static str> {
+    if brand == 10 { return K.iter().map(|k| k.0).filter(|id| crate::androidtv::touche_android(id).is_some()).collect(); }
     K.iter().filter(|k| k.1.get(brand).is_some_and(|c| !c.is_empty())).map(|k| k.0).collect()
 }
 
@@ -87,12 +88,13 @@ pub fn code(id: &str, brand: usize) -> Result<String, String> {
         if nom.is_empty() || nom.chars().count() > 40 || !nom.chars().all(|c| c.is_alphanumeric() || " +-.&'".contains(c)) {
             return Err("nom d'application invalide".into());
         }
-        return if matches!(brand, 0 | 1 | 3) { Ok(format!("APP:{nom}")) } else { Err("lancement d'applications non géré par cette marque".into()) };
+        return if matches!(brand, 0 | 1 | 3 | 10) { Ok(format!("APP:{nom}")) } else { Err("lancement d'applications non géré par cette marque".into()) };
     }
     if let Some(s) = id.strip_prefix("src:") {
         // Entrée de la TV choisie dans sa liste (LG webOS : tv/switchInput) : identifiant alphanumérique seulement.
         return if brand == 1 && !s.is_empty() && s.len() <= 40 && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') { Ok(format!("SRC:{s}")) } else { Err("entrée non gérée par cette marque".into()) };
     }
+    if brand == 10 { return crate::androidtv::touche_android(id).map(|c| format!("KEY:{c}")).ok_or_else(|| format!("touche « {id} » non gérée par Android TV")); }
     let e = K.iter().find(|k| k.0 == id).ok_or(format!("touche inconnue : {id}"))?;
     match e.1.get(brand) {
         Some(c) if !c.is_empty() => Ok(c.to_string()),

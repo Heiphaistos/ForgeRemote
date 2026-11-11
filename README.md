@@ -51,6 +51,11 @@ avant installation silencieuse (Windows). Android/Linux : lien vers la release.
 - Noms de TV décodés (`65&quot;` -> `65"`), MAC lue dans la table ARP puis l'API de la TV.
 - Correctif : le bandeau « Installer » ne s'affiche plus en permanence.
 
+## Nouveautés 0.9.7
+
+- Android TV / Google TV (protocole Remote v2 : appairage TLS sur 6467 avec code à 6 caractères hexadécimaux, télécommande sur 6466, certificat client RSA généré une fois). Testé avec une fausse TV en vrai TLS (appairage, secret, ping, touche) ; jamais sur une vraie TV.
+- Fire TV : table de touches corrigée d'après la décompilation de l'appli Roku (JADX) : Marche/arrêt = `sleep`, volume et muet par `volume_up/volume_down/mute`, avance/retour rapides par `scan`, chiffres par saisie de texte. Vizio : table de codes confirmée à l'identique par la même décompilation.
+
 ## Nouveautés 0.9.6
 
 - Marques expérimentales (protocoles des bibliothèques publiques pyvizio, pymitv, pylgnetcast et de l'API locale Fire TV ; vérifiés seulement contre des serveurs simulés, JAMAIS sur une vraie TV) : Vizio SmartCast (appairage par code), Xiaomi Mi TV, LG Netcast 2012-2014 (appairage par code), Amazon Fire TV (appairage par code). Bouton « Afficher le code sur la TV » dans le profil. Xiaomi et Vizio sont aussi reconnus par la recherche réseau.

@@ -1,6 +1,6 @@
 [package]
 name = "forgeremote"
-version = "0.9.6"
+version = "0.9.7"
 description = "Télécommande universelle pour TV"
 authors = ["Heiphaistos"]
 edition = "2024"
@@ -19,7 +19,12 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
-tokio = { version = "1", features = ["time", "net"] }
+tokio = { version = "1", features = ["time", "net", "io-util"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring"] }
+rsa = "0.9"
+rand_core = { version = "0.6", features = ["getrandom"] }
+rcgen = { version = "0.13", default-features = false, features = ["ring", "pem"] }
+x509-parser = "0.16"
 tokio-tungstenite = { version = "0.26", features = ["rustls-tls-webpki-roots"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
