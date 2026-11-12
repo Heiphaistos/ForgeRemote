@@ -10,6 +10,8 @@ Télécommande universelle de TV (Android, Windows, Linux). Tauri 2 : cœur Rust
 | Panasonic Viera | Wi-Fi, SOAP 55000 | aucun (modèles avant ~2018) |
 | Roku | Wi-Fi, ECP 8060 | aucun |
 | Philips JointSpace v6 | Wi-Fi, HTTP 1925 | aucun (sans authentification) |
+| Freebox Player (expérimental) | Wi-Fi, HTTP 80 | code télécommande réseau (8 chiffres) |
+| Décodeur Orange TV (expérimental) | Wi-Fi, HTTP 8080 | aucun |
 | Sony Bravia | Wi-Fi, IRCC-IP | clé PSK réglée sur la TV ; les codes sont lus sur la TV |
 | 95 marques (Samsung, LG, Sony, Panasonic, Philips, Sharp, Toshiba, Hisense, TCL, Vizio…) | Infrarouge, émetteur du téléphone Android | aucun |
 | Android TV, Fire TV, TV avec Bluetooth | Bluetooth : le téléphone se fait passer pour une télécommande/clavier (Android 9+) | appairage Bluetooth entre la TV et le téléphone |
@@ -50,6 +52,12 @@ avant installation silencieuse (Windows). Android/Linux : lien vers la release.
 - Recherche réseau dans une fenêtre au premier plan (avancement, résultat, relance, aide si la TV est éteinte).
 - Noms de TV décodés (`65&quot;` -> `65"`), MAC lue dans la table ARP puis l'API de la TV.
 - Correctif : le bandeau « Installer » ne s'affiche plus en permanence.
+
+## Nouveautés 0.11.0
+
+- **Freebox Player** (marque « Freebox Player ») : API HTTP « télécommande réseau » (port 80). Il faut recopier dans le profil le code à 8 chiffres affiché dans Réglages > Système > Informations de la box. Expérimental : vérifié par serveur simulé, pas sur une vraie box.
+- **Décodeur Orange TV** (marque « Décodeur Orange TV ») : HTTP port 8080, touches numériques. Expérimental, même réserve.
+- **Bouygues (Bbox Miami) et SFR récentes** : box sous Android TV, utiliser la marque « Android TV ».
 
 ## Nouveautés 0.10.1
 

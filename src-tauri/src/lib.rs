@@ -1,4 +1,5 @@
 mod androidtv;
+mod boxfr;
 mod detect;
 mod extra;
 mod http;
@@ -167,6 +168,8 @@ async fn envoyer(st: &St<'_>, id: &str, key: Option<&str>) -> Result<(), String>
         (9, Some(c)) => extra::firetv(&tv.ip, tok, c).await.map(|_| None),
         (10, Some(c)) => androidtv::envoyer(&tv.ip, c).await.map(|_| None),
         (11, c) => legacy::envoyer(&tv.ip, c).await.map(|_| None),
+        (12, Some(c)) => boxfr::freebox(&tv.ip, tok, c).await.map(|_| None),
+        (13, Some(c)) => boxfr::orange(&tv.ip, c).await.map(|_| None),
         (_, Some(c)) => sony::send(&tv.ip, tok, c).await.map(|_| None),
     };
     let nouveau = match res {
@@ -188,7 +191,7 @@ async fn diagnostic(st: St<'_>, id: String) -> Result<Vec<String>, String> {
     let tv = st.lock().unwrap().get(&id)?; // verrou relâché avant tout await
     let mut o = vec![format!("Profil : marque « {} », IP « {} », jeton {}", tv.brand, if tv.ip.is_empty() { "aucune" } else { &tv.ip }, if tv.token.is_some() { "présent" } else { "absent" })];
     if wifi_idx(&tv).is_err() { o.push("Wi-Fi : IMPOSSIBLE, ce profil n'a pas d'adresse IP (Modifier > Adresse IP de la TV).".into()); return Ok(o); }
-    let ports: &[u16] = match base(&tv.brand) { "samsung" => &[8001, 8002], "lg" => &[3001, 3000], "roku" => &[8060], "panasonic" => &[55000], "philips" => &[1925], "sony" => &[80], "samsunglegacy" => &[55000], "vizio" => &[7345, 9000], "xiaomi" => &[6095], "lgnetcast" => &[8080], "firetv" => &[8080], "androidtv" => &[6466, 6467], _ => &[] };
+    let ports: &[u16] = match base(&tv.brand) { "samsung" => &[8001, 8002], "lg" => &[3001, 3000], "roku" => &[8060], "panasonic" => &[55000], "philips" => &[1925], "sony" => &[80], "samsunglegacy" => &[55000], "vizio" => &[7345, 9000], "xiaomi" => &[6095], "lgnetcast" => &[8080], "firetv" => &[8080], "androidtv" => &[6466, 6467], "freebox" => &[80], "orange" => &[8080], _ => &[] };
     let ip: std::net::Ipv4Addr = valider_ip(&tv.ip)?;
     for p in ports {
         let t = std::time::Instant::now();

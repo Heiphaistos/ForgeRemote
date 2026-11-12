@@ -245,15 +245,16 @@ function formUi() {
   $("#l-ip").hidden = b === "bt"; $("#l-mac").hidden = local; $("#detect").hidden = local;
   $("#l-ip-t").textContent = ir ? "IP de la TV (facultatif : pour les applis Plex, Netflix…)" : "Adresse IP de la TV";
   const pinBrand = PIN_MARQUES.includes(b);
-  $("#l-psk").hidden = b !== "sony" && !pinBrand; $("#pin-go").hidden = !pinBrand; $("#l-bt").hidden = b !== "bt";
+  const fbx = b === "freebox";
+  $("#l-psk").hidden = b !== "sony" && !pinBrand && !fbx; $("#pin-go").hidden = !pinBrand; $("#l-bt").hidden = b !== "bt";
   const primWifi = !local;
   $("#l-ir-too").hidden = !primWifi; $("#f-ir-too").disabled = !primWifi;
   $("#l-bt-too").hidden = b === "bt"; $("#combo").hidden = b === "bt";
   $("#l-ir-brand").hidden = !(primWifi && $("#f-ir-too").checked);
   if (primWifi && $("#f-ir-too").checked && !$("#f-ir-brand").dataset.touche) $("#f-ir-brand").value = irMarques().some((x) => x.id === `ir_${b}`) ? `ir_${b}` : $("#f-ir-brand").value;
   if ($("#f-bt-too").checked && b !== "bt") { $("#l-bt").hidden = false; remplirBt(); }
-  $("#l-psk-t").textContent = pinBrand ? "Code affiché sur la TV" : "Clé PSK Sony";
-  $("#f-psk").placeholder = pinBrand ? "d'abord « Afficher le code sur la TV », puis saisis-le ici" : "réglée dans les paramètres réseau de la TV";
+  $("#l-psk-t").textContent = fbx ? "Code télécommande réseau de la Freebox" : pinBrand ? "Code affiché sur la TV" : "Clé PSK Sony";
+  $("#f-psk").placeholder = fbx ? "Player : Réglages > Système > Informations (8 chiffres)" : pinBrand ? "d'abord « Afficher le code sur la TV », puis saisis-le ici" : "réglée dans les paramètres réseau de la TV";
   $("#f-ip").required = !local;
   if (b === "bt") remplirBt();
 }
